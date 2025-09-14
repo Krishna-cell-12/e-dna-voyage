@@ -81,7 +81,7 @@ const GlobalMap: React.FC<GlobalMapProps> = ({ selectedRegion, onRegionSelect, o
     }
   ];
 
-  const currentRegion = regions.find(r => r.id === selectedRegion) || regions[0];
+  const currentRegion = selectedRegion ? regions.find(r => r.id === selectedRegion) : null;
 
   useEffect(() => {
     if (mapRef.current) {
@@ -121,37 +121,39 @@ const GlobalMap: React.FC<GlobalMapProps> = ({ selectedRegion, onRegionSelect, o
         mapElement.appendChild(continentEl);
       });
 
-      // Add region highlights
-      regions.forEach((region) => {
-        const highlight = document.createElement('div');
-        highlight.className = `absolute rounded-full transition-all duration-500 ${
-          selectedRegion === region.id 
-            ? 'bg-primary/30 shadow-bioluminescent border-2 border-primary' 
-            : 'bg-transparent hover:bg-bioluminescent-teal/20'
-        }`;
-        
-        // Position and size based on region bounds
-        const x = ((region.center[0] + 180) / 360) * 100;
-        const y = ((90 - region.center[1]) / 180) * 100;
-        const width = Math.abs(region.bounds[1][0] - region.bounds[0][0]) / 360 * 100;
-        const height = Math.abs(region.bounds[1][1] - region.bounds[0][1]) / 180 * 100;
-        
-        highlight.style.left = `${x - width/2}%`;
-        highlight.style.top = `${y - height/2}%`;
-        highlight.style.width = `${width}%`;
-        highlight.style.height = `${height}%`;
-        highlight.style.borderRadius = '50%';
-        
-        highlight.addEventListener('click', () => {
-          onRegionSelect(region.id);
-          setSelectedLocation(region);
-          setShowSpeciesDialog(true);
+      // Add region highlights (only show when a region is selected)
+      if (selectedRegion) {
+        regions.forEach((region) => {
+          const highlight = document.createElement('div');
+          highlight.className = `absolute rounded-full transition-all duration-500 ${
+            selectedRegion === region.id 
+              ? 'bg-primary/30 shadow-bioluminescent border-2 border-primary' 
+              : 'bg-transparent hover:bg-bioluminescent-teal/20'
+          }`;
+          
+          // Position and size based on region bounds
+          const x = ((region.center[0] + 180) / 360) * 100;
+          const y = ((90 - region.center[1]) / 180) * 100;
+          const width = Math.abs(region.bounds[1][0] - region.bounds[0][0]) / 360 * 100;
+          const height = Math.abs(region.bounds[1][1] - region.bounds[0][1]) / 180 * 100;
+          
+          highlight.style.left = `${x - width/2}%`;
+          highlight.style.top = `${y - height/2}%`;
+          highlight.style.width = `${width}%`;
+          highlight.style.height = `${height}%`;
+          highlight.style.borderRadius = '50%';
+          
+          highlight.addEventListener('click', () => {
+            onRegionSelect(region.id);
+            setSelectedLocation(region);
+            setShowSpeciesDialog(true);
+          });
+          
+          mapElement.appendChild(highlight);
         });
-        
-        mapElement.appendChild(highlight);
-      });
+      }
 
-      // Add region markers
+      // Add region markers (always visible but styled differently based on selection)
       regions.forEach((region, index) => {
         const marker = document.createElement('div');
         marker.className = `absolute w-6 h-6 rounded-full cursor-pointer transition-all duration-300 flex items-center justify-center ${
@@ -180,7 +182,7 @@ const GlobalMap: React.FC<GlobalMapProps> = ({ selectedRegion, onRegionSelect, o
         mapElement.appendChild(marker);
       });
 
-      // Add region labels
+      // Add region labels (always visible but styled differently based on selection)
       regions.forEach((region) => {
         const label = document.createElement('div');
         label.className = `absolute text-sm text-white font-medium pointer-events-none transition-all duration-300 ${

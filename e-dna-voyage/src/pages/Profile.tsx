@@ -4,6 +4,8 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AbyssBackground } from '@/components/AbyssBackground';
+import { useUser } from '@/contexts/UserContext';
+import EditProfileModal from '@/components/EditProfileModal';
 import { 
   User, 
   Settings, 
@@ -20,20 +22,18 @@ import {
   Edit3,
   Mail,
   Globe,
-  Download
+  Download,
+  CheckCircle,
+  FileText,
+  FolderOpen
 } from 'lucide-react';
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [showUpdateSuccess, setShowUpdateSuccess] = useState(false);
+  const { user, isAuthenticated, logout } = useUser();
 
-  const userStats = {
-    projectsCompleted: 12,
-    samplesAnalyzed: 347,
-    novelSpeciesFound: 89,
-    collaborations: 24,
-    totalSequences: 2456789,
-    citationsReceived: 156
-  };
 
   const achievements = [
     {
@@ -106,8 +106,16 @@ const Profile = () => {
         <Card className="deep-card p-8 mb-8 border border-border/20">
           <div className="flex items-center gap-6 mb-6">
             <div className="relative">
-              <div className="w-24 h-24 rounded-full bg-gradient-bioluminescent flex items-center justify-center shadow-bioluminescent">
-                <User className="w-12 h-12 text-primary-foreground" />
+              <div className="w-24 h-24 rounded-full bg-gradient-bioluminescent flex items-center justify-center shadow-bioluminescent overflow-hidden">
+                {user?.avatar ? (
+                  <img 
+                    src={user.avatar} 
+                    alt="Profile" 
+                    className="w-full h-full object-cover rounded-full"
+                  />
+                ) : (
+                  <User className="w-12 h-12 text-primary-foreground" />
+                )}
               </div>
               <Button size="sm" className="absolute -bottom-2 -right-2 w-8 h-8 p-0 rounded-full">
                 <Camera className="w-4 h-4" />
@@ -117,70 +125,73 @@ const Profile = () => {
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-3xl font-montserrat font-bold text-foreground">
-                  Dr. Marina Rodriguez
+                  {user?.name || 'User'}
                 </h1>
                 <Button size="sm" variant="ghost">
                   <Edit3 className="w-4 h-4" />
                 </Button>
               </div>
               <p className="text-lg text-muted-foreground mb-3">
-                Marine Biologist & eDNA Research Specialist
+                {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User'} 
+                {user?.institution && ` at ${user.institution}`}
               </p>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <MapPin className="w-4 h-4" />
-                  Woods Hole, MA
-                </div>
+                {user?.location && (
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-4 h-4" />
+                    {user.location}
+                  </div>
+                )}
                 <div className="flex items-center gap-1">
                   <Mail className="w-4 h-4" />
-                  m.rodriguez@oceaninstitute.org
+                  {user?.email || 'No email provided'}
                 </div>
-                <div className="flex items-center gap-1">
-                  <Globe className="w-4 h-4" />
-                  oceanresearch.org/marina
-                </div>
+                {user?.institution && (
+                  <div className="flex items-center gap-1">
+                    <Globe className="w-4 h-4" />
+                    {user.institution}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="text-right">
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-bioluminescent mb-2">
+              <Button 
+                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-bioluminescent mb-2"
+                onClick={() => setShowEditProfile(true)}
+              >
                 <Settings className="w-4 h-4 mr-2" />
                 Edit Profile
               </Button>
-              <div className="text-sm text-muted-foreground">
-                Member since Jan 2023
+              <div className="text-sm text-muted-foreground mb-2">
+                Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Unknown'}
               </div>
+              <Button 
+                variant="outline" 
+                className="border-destructive text-destructive hover:bg-destructive/10"
+                onClick={logout}
+              >
+                Logout
+              </Button>
             </div>
           </div>
 
-          {/* Quick Stats */}
-          <div className="grid md:grid-cols-6 gap-4">
-            <div className="text-center">
-              <div className="text-xl font-bold text-primary">{userStats.projectsCompleted}</div>
-              <div className="text-xs text-muted-foreground">Projects</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-bioluminescent-teal">{userStats.samplesAnalyzed}</div>
-              <div className="text-xs text-muted-foreground">Samples</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-coral-glow">{userStats.novelSpeciesFound}</div>
-              <div className="text-xs text-muted-foreground">Novel Species</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-species-glow">{userStats.collaborations}</div>
-              <div className="text-xs text-muted-foreground">Collaborations</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-bioluminescent-purple">{(userStats.totalSequences / 1000000).toFixed(1)}M</div>
-              <div className="text-xs text-muted-foreground">Sequences</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-foreground">{userStats.citationsReceived}</div>
-              <div className="text-xs text-muted-foreground">Citations</div>
-            </div>
-          </div>
         </Card>
+
+        {/* Success Notification */}
+        {showUpdateSuccess && (
+          <Card className="mb-6 p-4 border border-primary/20 bg-primary/10">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h4 className="font-medium text-primary">Profile Updated Successfully!</h4>
+                <p className="text-sm text-muted-foreground">Your changes have been saved and are now visible on your profile.</p>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Profile Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -198,87 +209,115 @@ const Profile = () => {
                 <h3 className="font-montserrat font-semibold mb-4 text-foreground">
                   About & Research Interests
                 </h3>
-                <p className="text-muted-foreground mb-4">
-                  Dr. Marina Rodriguez is a leading marine biologist specializing in deep-sea biodiversity and 
-                  environmental DNA analysis. With over 10 years of experience in oceanographic research, 
-                  she has pioneered the use of AI-driven techniques for discovering novel marine species 
-                  in extreme environments.
-                </p>
-                <p className="text-muted-foreground mb-4">
-                  Her current research focuses on understanding the impact of climate change on deep-sea 
-                  ecosystems and developing new methodologies for rapid biodiversity assessment using eDNA.
-                </p>
-                <div className="flex flex-wrap gap-2">
+                {user?.bio ? (
+                  <p className="text-muted-foreground mb-4">
+                    {user.bio}
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-muted-foreground mb-4">
+                      No bio provided yet. Click "Edit Profile" to add information about yourself and your research interests.
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowEditProfile(true)}
+                      className="border-primary text-primary hover:bg-primary/10"
+                    >
+                      <Edit3 className="w-4 h-4 mr-2" />
+                      Add Bio
+                    </Button>
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2 mb-4">
                   {['Deep Sea Biology', 'eDNA Analysis', 'AI/ML Applications', 'Climate Change', 'Conservation'].map((interest, index) => (
                     <Badge key={index} variant="secondary" className="text-xs">
                       {interest}
                     </Badge>
                   ))}
                 </div>
+                
+                {/* Add Discoveries Button */}
+                <div className="flex justify-end">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowEditProfile(true)}
+                    className="border-primary text-primary hover:bg-primary/10"
+                  >
+                    <Edit3 className="w-4 h-4 mr-2" />
+                    Add Discoveries
+                  </Button>
+                </div>
               </Card>
 
-              {/* Recent Discoveries */}
+              {/* Professional Information */}
               <Card className="deep-card p-6 border border-border/20">
                 <h3 className="font-montserrat font-semibold mb-4 text-foreground">
-                  Recent Discoveries
+                  Professional Information
                 </h3>
                 <div className="space-y-4">
-                  <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
-                    <h4 className="font-medium text-primary text-sm mb-1">
-                      Bathypelagic Cephalopod
-                    </h4>
-                    <p className="text-xs text-muted-foreground">
-                      Novel species found at 6,000m depth
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-bioluminescent-teal/10 border border-bioluminescent-teal/20">
-                    <h4 className="font-medium text-bioluminescent-teal text-sm mb-1">
-                      Hadal Xenophyophore
-                    </h4>
-                    <p className="text-xs text-muted-foreground">
-                      Unique giant single-cell organism
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-coral-glow/10 border border-coral-glow/20">
-                    <h4 className="font-medium text-coral-glow text-sm mb-1">
-                      Deep Sea Polychaete
-                    </h4>
-                    <p className="text-xs text-muted-foreground">
-                      Previously unknown family identified
-                    </p>
-                  </div>
+                  {user?.publications && (
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-primary" />
+                      <div>
+                        <h4 className="font-medium text-foreground text-sm">Publications</h4>
+                        <p className="text-xs text-muted-foreground">{user.publications}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {user?.citations && (
+                    <div className="flex items-center gap-3">
+                      <Award className="w-5 h-5 text-bioluminescent-teal" />
+                      <div>
+                        <h4 className="font-medium text-foreground text-sm">Citations</h4>
+                        <p className="text-xs text-muted-foreground">{user.citations}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {user?.createdProjects && (
+                    <div className="flex items-center gap-3">
+                      <FolderOpen className="w-5 h-5 text-coral-glow" />
+                      <div>
+                        <h4 className="font-medium text-foreground text-sm">Created Projects</h4>
+                        <p className="text-xs text-muted-foreground">{user.createdProjects}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {user?.countries && (
+                    <div className="flex items-center gap-3">
+                      <Globe className="w-5 h-5 text-accent" />
+                      <div>
+                        <h4 className="font-medium text-foreground text-sm">Countries Worked In</h4>
+                        <p className="text-xs text-muted-foreground">{user.countries}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {!user?.publications && !user?.citations && !user?.createdProjects && !user?.countries && (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-muted-foreground mb-3">
+                        No professional information provided yet.
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setShowEditProfile(true)}
+                        className="border-primary text-primary hover:bg-primary/10"
+                      >
+                        <Edit3 className="w-4 h-4 mr-2" />
+                        Add Professional Info
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </Card>
+
             </div>
 
-            {/* Research Impact */}
-            <Card className="deep-card p-6 border border-border/20">
-              <h3 className="font-montserrat font-semibold mb-6 text-foreground">
-                Research Impact & Metrics
-              </h3>
-              <div className="grid md:grid-cols-4 gap-6">
-                <div className="text-center">
-                  <Award className="w-8 h-8 text-coral-glow mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-coral-glow mb-1">15</div>
-                  <div className="text-sm text-muted-foreground">Publications</div>
-                </div>
-                <div className="text-center">
-                  <BarChart3 className="w-8 h-8 text-primary mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-primary mb-1">156</div>
-                  <div className="text-sm text-muted-foreground">Citations</div>
-                </div>
-                <div className="text-center">
-                  <Users className="w-8 h-8 text-bioluminescent-teal mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-bioluminescent-teal mb-1">8</div>
-                  <div className="text-sm text-muted-foreground">Current Projects</div>
-                </div>
-                <div className="text-center">
-                  <Globe className="w-8 h-8 text-species-glow mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-species-glow mb-1">12</div>
-                  <div className="text-sm text-muted-foreground">Countries</div>
-                </div>
-              </div>
-            </Card>
           </TabsContent>
 
           <TabsContent value="achievements" className="space-y-6">
@@ -398,6 +437,16 @@ const Profile = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={showEditProfile}
+        onClose={() => setShowEditProfile(false)}
+        onSuccess={() => {
+          setShowUpdateSuccess(true);
+          setTimeout(() => setShowUpdateSuccess(false), 5000);
+        }}
+      />
     </div>
   );
 };

@@ -33,7 +33,7 @@ interface BiodiversityData {
 const Dashboard = () => {
   const [selectedDepth, setSelectedDepth] = useState(2000);
   const [isTimelapseActive, setIsTimelapseActive] = useState(false);
-  const [selectedRegion, setSelectedRegion] = useState('pacific');
+  const [selectedRegion, setSelectedRegion] = useState('');
 
   const biodiversityData: BiodiversityData[] = [
     {
@@ -120,6 +120,7 @@ const Dashboard = () => {
                   onChange={(e) => setSelectedRegion(e.target.value)}
                   className="bg-card border border-border/20 rounded px-3 py-1 text-sm text-foreground"
                 >
+                  <option value="">All Regions</option>
                   <option value="pacific">Pacific Ocean</option>
                   <option value="atlantic">Atlantic Ocean</option>
                   <option value="indian">Indian Ocean</option>
@@ -159,7 +160,7 @@ const Dashboard = () => {
             <Card className="futuristic-card p-6 border border-border/20">
               <h3 className="font-montserrat font-semibold mb-4 text-foreground flex items-center gap-2">
                 <Globe className="w-5 h-5 text-primary" />
-                Global Ocean Map - {selectedRegion.charAt(0).toUpperCase() + selectedRegion.slice(1)} Ocean
+                Global Ocean Map{selectedRegion ? ` - ${selectedRegion.charAt(0).toUpperCase() + selectedRegion.slice(1)} Ocean` : ''}
               </h3>
               
               {/* Global Map */}

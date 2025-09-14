@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AbyssBackground } from '@/components/AbyssBackground';
-import { DataVisualization } from '@/components/DataVisualization';
 import { SpeciesDiscovery } from '@/components/SpeciesDiscovery';
 import { Dna, Zap, Eye, Database, Brain, Waves, Upload, BarChart3 } from 'lucide-react';
 import deepSeaHero from '@/assets/deep-sea-hero.jpg';
@@ -211,13 +210,6 @@ const Home = () => {
             </div>
           </div>
 
-          {/* Data Visualization */}
-          <div className="mb-16">
-            <h3 className="text-2xl font-montserrat font-semibold text-center mb-8 text-accent">
-              Live Biodiversity Network
-            </h3>
-            <DataVisualization />
-          </div>
         </div>
       </section>
 

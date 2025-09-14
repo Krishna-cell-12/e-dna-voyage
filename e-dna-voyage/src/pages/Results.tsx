@@ -38,7 +38,7 @@ const Results = () => {
   const [step, setStep] = useState<number>(2); // 1-5 like in the mock
   const [zoneStates, setZoneStates] = useState<ZoneState[]>(Array.from({ length: 64 }, () => 'inactive'));
   
-  const { analysisResults } = useAnalysis();
+  const { analysisResults, uploadedFiles } = useAnalysis();
   
   // Set default selected result to first uploaded analysis or first legacy result
   const [selectedResult, setSelectedResult] = useState<string>(() => {
@@ -123,17 +123,32 @@ const Results = () => {
   ];
 
   // Convert context analysis results to display format
-  const convertedAnalysisResults = analysisResults.map(result => ({
-    id: result.id,
-    sampleName: result.fileName,
-    date: result.date,
-    location: result.location || 'Unknown Location',
-    totalSequences: result.totalSequences,
-    knownSpecies: result.knownSpecies,
-    novelSpecies: result.novelSpecies,
-    confidence: result.confidence,
-    status: result.status === 'Complete' ? 'completed' : result.status === 'Processing' ? 'processing' : 'failed'
-  }));
+  const convertedAnalysisResults = analysisResults.map(result => {
+    // Extract coordinates from location string if it contains them
+    let locationDisplay = result.location || 'Unknown Location';
+    
+    // If location contains coordinates format (e.g., "40.7128°N, 74.0060°E"), use it as is
+    // If it contains an address, try to extract coordinates from the original file data
+    if (result.location && !result.location.includes('°')) {
+      // This is likely an address, try to find the original coordinates
+      const originalFile = uploadedFiles.find(file => file.id === result.id.replace('result-', ''));
+      if (originalFile?.location) {
+        locationDisplay = `${originalFile.location.latitude.toFixed(4)}°N, ${originalFile.location.longitude.toFixed(4)}°E`;
+      }
+    }
+    
+    return {
+      id: result.id,
+      sampleName: result.fileName,
+      date: result.date,
+      location: locationDisplay,
+      totalSequences: result.totalSequences,
+      knownSpecies: result.knownSpecies,
+      novelSpecies: result.novelSpecies,
+      confidence: result.confidence,
+      status: result.status === 'Complete' ? 'completed' : result.status === 'Processing' ? 'processing' : 'failed'
+    };
+  });
 
   // Combine legacy and new results
   const allAnalysisResults = [...convertedAnalysisResults, ...legacyAnalysisResults];
