@@ -221,3 +221,83 @@ All colors MUST be HSL.
     background-position: 100% 50%;
   }
 }
+
+/* Spline Globe Integration */
+.spline-globe-container {
+  @apply relative overflow-hidden rounded-lg;
+  background: var(--gradient-quantum);
+  border: 1px solid hsl(var(--border) / 0.2);
+  box-shadow: var(--shadow-depth);
+}
+
+.spline-globe-container::before {
+  content: '';
+  @apply absolute inset-0 pointer-events-none;
+  background: var(--gradient-neural);
+  opacity: 0.1;
+  animation: var(--animation-pulse);
+}
+
+.spline-loading-overlay {
+  @apply absolute inset-0 flex items-center justify-center;
+  background: var(--gradient-quantum);
+  backdrop-filter: blur(10px);
+}
+
+.spline-error-fallback {
+  @apply absolute inset-0 flex items-center justify-center;
+  background: var(--gradient-quantum);
+}
+
+/* Hide Spline branding and ensure proper sizing */
+.spline-globe-container spline-viewer {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0.5rem;
+  display: block !important;
+}
+
+.spline-globe-container spline-viewer canvas {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  display: block !important;
+}
+
+/* Hide Spline branding completely */
+.spline-globe-container spline-viewer::after,
+.spline-globe-container spline-viewer::before {
+  display: none !important;
+}
+
+.spline-globe-container .spline-watermark,
+.spline-globe-container [data-spline-watermark],
+.spline-globe-container .spline-logo,
+.spline-globe-container .spline-branding {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/* Ensure proper container sizing */
+.spline-globe-container {
+  position: relative;
+  overflow: hidden;
+  min-height: 400px;
+  min-width: 100%;
+}
+
+.spline-globe-container > * {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Force Spline viewer to fill container */
+.spline-globe-container spline-viewer {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+}

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { AbyssBackground } from '@/components/AbyssBackground';
 import { DataVisualization } from '@/components/DataVisualization';
+import SplineGlobe from '@/components/SplineGlobe';
 import { 
   Globe, 
   Layers, 
@@ -156,20 +157,15 @@ const Dashboard = () => {
                 Interactive Ocean Map
               </h3>
               
-              {/* 3D Globe Placeholder */}
-              <div className="aspect-[16/10] rounded-lg bg-gradient-quantum border border-border/20 flex items-center justify-center relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-neural opacity-20 animate-pulse-bioluminescent"></div>
-                <div className="text-center z-10">
-                  <Globe className="w-16 h-16 text-primary mx-auto mb-4 animate-glow quantum-drift" />
-                  <h4 className="text-lg font-medium text-foreground mb-2">3D Ocean Globe</h4>
-                  <p className="text-sm text-muted-foreground">Interactive biodiversity visualization</p>
-                </div>
+              {/* 3D Spline Globe */}
+              <div className="aspect-[4/3] rounded-lg border border-border/20 relative overflow-hidden min-h-[500px]">
+                <SplineGlobe className="w-full h-full" />
                 
-                {/* Floating Species Markers */}
+                {/* Floating Species Markers Overlay */}
                 {biodiversityData.map((data, index) => (
                   <div
                     key={index}
-                    className={`absolute w-4 h-4 rounded-full quantum-particle animate-quantum-drift shadow-neon`}
+                    className={`absolute w-4 h-4 rounded-full quantum-particle animate-quantum-drift shadow-neon z-10`}
                     style={{
                       left: `${20 + index * 25}%`,
                       top: `${30 + index * 15}%`,
