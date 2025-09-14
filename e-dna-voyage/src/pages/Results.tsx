@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { AbyssBackground } from '@/components/AbyssBackground';
 import { DataVisualization } from '@/components/DataVisualization';
 import { ZoneGrid, ZoneState } from '@/components/ZoneGrid';
+import { useAnalysis, type AnalysisResult } from '@/contexts/AnalysisContext';
 import { 
   BarChart3, 
   Dna, 
@@ -21,7 +22,7 @@ import {
   Star
 } from 'lucide-react';
 
-interface AnalysisResult {
+interface LegacyAnalysisResult {
   id: string;
   sampleName: string;
   date: string;
@@ -34,9 +35,18 @@ interface AnalysisResult {
 }
 
 const Results = () => {
-  const [selectedResult, setSelectedResult] = useState<string>('sample-001');
   const [step, setStep] = useState<number>(2); // 1-5 like in the mock
   const [zoneStates, setZoneStates] = useState<ZoneState[]>(Array.from({ length: 64 }, () => 'inactive'));
+  
+  const { analysisResults } = useAnalysis();
+  
+  // Set default selected result to first uploaded analysis or first legacy result
+  const [selectedResult, setSelectedResult] = useState<string>(() => {
+    if (analysisResults.length > 0) {
+      return analysisResults[0].id;
+    }
+    return 'sample-001';
+  });
 
   // Simulate animated analysis across steps
   useEffect(() => {
@@ -75,7 +85,8 @@ const Results = () => {
     };
   }, [step]);
 
-  const analysisResults: AnalysisResult[] = [
+  // Legacy analysis results for demo purposes
+  const legacyAnalysisResults: LegacyAnalysisResult[] = [
     {
       id: 'sample-001',
       sampleName: 'Mariana Trench - Station Alpha',
@@ -111,6 +122,22 @@ const Results = () => {
     }
   ];
 
+  // Convert context analysis results to display format
+  const convertedAnalysisResults = analysisResults.map(result => ({
+    id: result.id,
+    sampleName: result.fileName,
+    date: result.date,
+    location: result.location || 'Unknown Location',
+    totalSequences: result.totalSequences,
+    knownSpecies: result.knownSpecies,
+    novelSpecies: result.novelSpecies,
+    confidence: result.confidence,
+    status: result.status === 'Complete' ? 'completed' : result.status === 'Processing' ? 'processing' : 'failed'
+  }));
+
+  // Combine legacy and new results
+  const allAnalysisResults = [...convertedAnalysisResults, ...legacyAnalysisResults];
+
   const novelSpeciesData = [
     {
       name: 'Bathypelagic Cephalopod SP-001',
@@ -142,7 +169,7 @@ const Results = () => {
     }
   ];
 
-  const currentResult = analysisResults.find(r => r.id === selectedResult) || analysisResults[0];
+  const currentResult = allAnalysisResults.find(r => r.id === selectedResult) || allAnalysisResults[0];
 
   return (
     <div className="relative min-h-screen pt-16">
@@ -167,7 +194,7 @@ const Results = () => {
                 Recent Analyses
               </h3>
               <div className="space-y-3">
-                {analysisResults.map((result) => (
+                {allAnalysisResults.map((result) => (
                   <div
                     key={result.id}
                     onClick={() => setSelectedResult(result.id)}

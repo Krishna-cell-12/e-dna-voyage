@@ -5,15 +5,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { AbyssBackground } from '@/components/AbyssBackground';
-import { DataVisualization } from '@/components/DataVisualization';
-import SplineGlobe from '@/components/SplineGlobe';
+import GlobalMap from '@/components/GlobalMap';
 import { 
   Globe, 
   Layers, 
   Activity, 
   Zap, 
   Brain,
-  Microscope,
   TrendingUp,
   MapPin,
   Filter,
@@ -35,7 +33,7 @@ interface BiodiversityData {
 const Dashboard = () => {
   const [selectedDepth, setSelectedDepth] = useState(2000);
   const [isTimelapseActive, setIsTimelapseActive] = useState(false);
-  const [selectedRegion, setSelectedRegion] = useState('all');
+  const [selectedRegion, setSelectedRegion] = useState('pacific');
 
   const biodiversityData: BiodiversityData[] = [
     {
@@ -69,6 +67,14 @@ const Dashboard = () => {
 
   const toggleTimelapse = () => {
     setIsTimelapseActive(!isTimelapseActive);
+  };
+
+  const handleRegionSelect = (region: string) => {
+    setSelectedRegion(region);
+  };
+
+  const handleLocationClick = (data: any) => {
+    console.log('Location clicked:', data);
   };
 
   return (
@@ -114,11 +120,10 @@ const Dashboard = () => {
                   onChange={(e) => setSelectedRegion(e.target.value)}
                   className="bg-card border border-border/20 rounded px-3 py-1 text-sm text-foreground"
                 >
-                  <option value="all">All Oceans</option>
-                  <option value="pacific">Pacific</option>
-                  <option value="atlantic">Atlantic</option>
-                  <option value="indian">Indian</option>
-                  <option value="arctic">Arctic</option>
+                  <option value="pacific">Pacific Ocean</option>
+                  <option value="atlantic">Atlantic Ocean</option>
+                  <option value="indian">Indian Ocean</option>
+                  <option value="arctic">Arctic Ocean</option>
                 </select>
               </div>
             </div>
@@ -149,31 +154,21 @@ const Dashboard = () => {
         </Card>
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Main 3D Globe */}
+          {/* Main Global Map */}
           <div className="lg:col-span-2">
             <Card className="futuristic-card p-6 border border-border/20">
               <h3 className="font-montserrat font-semibold mb-4 text-foreground flex items-center gap-2">
                 <Globe className="w-5 h-5 text-primary" />
-                Interactive Ocean Map
+                Global Ocean Map - {selectedRegion.charAt(0).toUpperCase() + selectedRegion.slice(1)} Ocean
               </h3>
               
-              {/* 3D Spline Globe */}
+              {/* Global Map */}
               <div className="aspect-[4/3] rounded-lg border border-border/20 relative overflow-hidden min-h-[500px]">
-                <SplineGlobe className="w-full h-full" />
-                
-                {/* Floating Species Markers Overlay */}
-                {biodiversityData.map((data, index) => (
-                  <div
-                    key={index}
-                    className={`absolute w-4 h-4 rounded-full quantum-particle animate-quantum-drift shadow-neon z-10`}
-                    style={{
-                      left: `${20 + index * 25}%`,
-                      top: `${30 + index * 15}%`,
-                      animationDelay: `${index * 1.5}s`,
-                      background: 'var(--gradient-neural)'
-                    }}
-                  />
-                ))}
+                <GlobalMap 
+                  selectedRegion={selectedRegion}
+                  onRegionSelect={handleRegionSelect}
+                  onLocationClick={handleLocationClick}
+                />
               </div>
 
               {/* Depth Slider */}
@@ -286,14 +281,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Network Visualization */}
-        <Card className="futuristic-card p-6 mt-8 border border-border/20">
-          <h3 className="font-montserrat font-semibold mb-6 text-foreground flex items-center gap-2">
-            <Microscope className="w-5 h-5 text-bio-green" />
-            Species Interaction Network
-          </h3>
-          <DataVisualization />
-        </Card>
       </div>
     </div>
   );
