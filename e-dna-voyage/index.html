@@ -1,7 +1,8 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <link rel="icon" type="image/svg+xml" href="/samudrayan-favicon.jpg" />
+    <link rel="icon" type="image/jpeg" href="/samudrayan-logo.jpg" />
+    <link rel="apple-touch-icon" href="/samudrayan-logo.jpg" />
     <!-- PNG fallbacks will be injected at runtime for legacy support -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -27,73 +28,5 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
-      (function generatePngFavicons() {
-        try {
-          const drawIcon = (size) => {
-            const canvas = document.createElement('canvas');
-            canvas.width = size; canvas.height = size;
-            const ctx = canvas.getContext('2d');
-            // Background
-            ctx.fillStyle = '#0B0F19';
-            const radius = Math.round(size * 0.22);
-            const w = size, h = size;
-            ctx.beginPath();
-            ctx.moveTo(radius, 0);
-            ctx.arcTo(w, 0, w, h, radius);
-            ctx.arcTo(w, h, 0, h, radius);
-            ctx.arcTo(0, h, 0, 0, radius);
-            ctx.arcTo(0, 0, w, 0, radius);
-            ctx.closePath();
-            ctx.fill();
-            // Gradient
-            const grad = ctx.createLinearGradient(0, h, w, 0);
-            grad.addColorStop(0, '#3BBEF6');
-            grad.addColorStop(0.5, '#06B6D4');
-            grad.addColorStop(1, '#9333EA');
-            ctx.strokeStyle = grad;
-            ctx.lineWidth = Math.max(2, Math.round(size * 0.08));
-            ctx.lineCap = 'round';
-            // Wave path
-            const y = Math.round(h * 0.55);
-            const amp = Math.round(h * 0.18);
-            const seg = Math.round(w / 4);
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            for (let i = 0; i < 4; i++) {
-              const x1 = i * seg + seg * 0.25;
-              const y1 = y - amp;
-              const x2 = i * seg + seg * 0.75;
-              const y2 = y + amp;
-              const x = (i + 1) * seg;
-              ctx.bezierCurveTo(x1, y1, x2, y2, x, y);
-            }
-            ctx.stroke();
-            // Sonar dot
-            ctx.beginPath();
-            ctx.fillStyle = '#3BBEF6';
-            ctx.arc(Math.round(w * 0.18), Math.round(h * 0.78), Math.max(2, Math.round(size * 0.05)), 0, Math.PI * 2);
-            ctx.fill();
-            return canvas.toDataURL('image/png');
-          };
-
-          const link32 = document.createElement('link');
-          link32.rel = 'icon';
-          link32.type = 'image/png';
-          link32.sizes = '32x32';
-          link32.href = drawIcon(32);
-
-          const link180 = document.createElement('link');
-          link180.rel = 'apple-touch-icon';
-          link180.sizes = '180x180';
-          link180.href = drawIcon(180);
-
-          document.head.appendChild(link32);
-          document.head.appendChild(link180);
-        } catch (e) {
-          // no-op: fallback to SVG/ICO if canvas not supported
-        }
-      })();
-    </script>
   </body>
 </html>

@@ -108,9 +108,6 @@ const ProjectResultsModal: React.FC<ProjectResultsModalProps> = ({ isOpen, onClo
             <DialogTitle className="text-2xl font-montserrat font-bold text-foreground">
               {project.name} - File Analysis Results
             </DialogTitle>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="w-5 h-5" />
-            </Button>
           </div>
         </DialogHeader>
 

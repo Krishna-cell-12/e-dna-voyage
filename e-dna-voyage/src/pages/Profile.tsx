@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +39,9 @@ import {
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showUpdateSuccess, setShowUpdateSuccess] = useState(false);
   
@@ -48,7 +51,45 @@ const Profile = () => {
   const [showDownloadData, setShowDownloadData] = useState(false);
   const [showEmailNotifications, setShowEmailNotifications] = useState(false);
   
-  const { user, isAuthenticated, logout } = useUser();
+  const { user, isAuthenticated, logout, updateProfile } = useUser();
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size should be less than 5MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      updateProfile({ avatar: String(reader.result) });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const startEditName = () => {
+    setEditedName(user?.name || '');
+    setIsEditingName(true);
+  };
+
+  const saveName = () => {
+    if (!editedName.trim()) return;
+    updateProfile({ name: editedName.trim() });
+    setIsEditingName(false);
+  };
+
+  const cancelEditName = () => {
+    setIsEditingName(false);
+    setEditedName('');
+  };
 
 
   const achievements = [
@@ -133,19 +174,45 @@ const Profile = () => {
                   <User className="w-12 h-12 text-primary-foreground" />
                 )}
               </div>
-              <Button size="sm" className="absolute -bottom-2 -right-2 w-8 h-8 p-0 rounded-full">
+              <input 
+                ref={fileInputRef}
+                type="file" 
+                accept="image/*" 
+                className="hidden" 
+                onChange={handleAvatarChange}
+              />
+              <Button size="sm" className="absolute -bottom-2 -right-2 w-8 h-8 p-0 rounded-full" onClick={handleAvatarClick}>
                 <Camera className="w-4 h-4" />
               </Button>
             </div>
             
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-montserrat font-bold text-foreground">
-                  {user?.name || 'User'}
-                </h1>
-                <Button size="sm" variant="ghost">
-                  <Edit3 className="w-4 h-4" />
-                </Button>
+                {isEditingName ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="bg-transparent border border-border/40 rounded px-2 py-1 text-foreground"
+                      value={editedName}
+                      onChange={(e) => setEditedName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveName();
+                        if (e.key === 'Escape') cancelEditName();
+                      }}
+                      autoFocus
+                    />
+                    <Button size="sm" onClick={saveName} className="h-7 px-3">Save</Button>
+                    <Button size="sm" variant="outline" onClick={cancelEditName} className="h-7 px-3">Cancel</Button>
+                  </div>
+                ) : (
+                  <>
+                    <h1 className="text-3xl font-montserrat font-bold text-foreground">
+                      {user?.name || 'User'}
+                    </h1>
+                    <Button size="sm" variant="ghost" onClick={startEditName}>
+                      <Edit3 className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
               </div>
               <p className="text-lg text-muted-foreground mb-3">
                 {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User'} 
@@ -226,7 +293,7 @@ const Profile = () => {
                   About & Research Interests
                 </h3>
                 {user?.bio ? (
-                  <p className="text-muted-foreground mb-4">
+                  <p className="text-muted-foreground mb-4 break-words break-all whitespace-pre-wrap">
                     {user.bio}
                   </p>
                 ) : (
@@ -342,10 +409,6 @@ const Profile = () => {
                 <h3 className="font-montserrat font-semibold text-foreground">
                   Achievements & Milestones
                 </h3>
-                <Button size="sm" variant="outline" className="border-primary text-primary hover:bg-primary/10">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export CV
-                </Button>
               </div>
               <div className="space-y-4">
                 {achievements.map((achievement, index) => (
