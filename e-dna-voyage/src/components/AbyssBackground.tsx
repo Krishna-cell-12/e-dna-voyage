@@ -8,6 +8,8 @@ interface Particle {
   speedY: number;
   opacity: number;
   pulse: number;
+  prevX: number;
+  prevY: number;
 }
 
 export const AbyssBackground = () => {
@@ -40,6 +42,8 @@ export const AbyssBackground = () => {
           speedY: (Math.random() - 0.5) * 0.5,
           opacity: Math.random() * 0.8 + 0.2,
           pulse: Math.random() * Math.PI * 2,
+          prevX: Math.random() * canvas.width,
+          prevY: Math.random() * canvas.height,
         });
       }
       particlesRef.current = particles;
@@ -49,6 +53,17 @@ export const AbyssBackground = () => {
       const pulseFactor = Math.sin(time * 0.002 + particle.pulse) * 0.3 + 0.7;
       const glowSize = particle.size * pulseFactor;
       
+      // Darken the path behind the moving particle to create attractive darker lines
+      const savedComposite = ctx.globalCompositeOperation;
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.42)';
+      ctx.lineWidth = Math.max(1.4, particle.size * 1.0);
+      ctx.beginPath();
+      ctx.moveTo(particle.prevX, particle.prevY);
+      ctx.lineTo(particle.x, particle.y);
+      ctx.stroke();
+      ctx.globalCompositeOperation = savedComposite;
+
       // Create gradient for bioluminescent effect
       const gradient = ctx.createRadialGradient(
         particle.x, particle.y, 0,
@@ -83,6 +98,10 @@ export const AbyssBackground = () => {
 
     const updateParticles = (time: number) => {
       particlesRef.current.forEach(particle => {
+        // track previous position for dark trail
+        particle.prevX = particle.x;
+        particle.prevY = particle.y;
+
         particle.x += particle.speedX;
         particle.y += particle.speedY;
 
@@ -98,7 +117,8 @@ export const AbyssBackground = () => {
     };
 
     const animate = (time: number) => {
-      ctx.fillStyle = 'rgba(11, 15, 25, 0.05)';
+      // Stronger fade so dark trails accumulate darker but remain smooth
+      ctx.fillStyle = 'rgba(11, 15, 25, 0.08)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       updateParticles(time);
@@ -130,7 +150,7 @@ export const AbyssBackground = () => {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 w-full h-full pointer-events-none z-0"
-      style={{ background: 'linear-gradient(180deg, hsl(220, 60%, 2%) 0%, hsl(220, 55%, 4%) 50%, hsl(220, 50%, 6%) 100%)' }}
+      style={{ background: 'linear-gradient(180deg, #000000 0%, #0a0a0a 50%, #111111 100%)' }}
     />
   );
 };
