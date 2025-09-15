@@ -23,8 +23,36 @@ interface GlobalMapProps {
 
 const GlobalMap: React.FC<GlobalMapProps> = ({ selectedRegion, onRegionSelect, onLocationClick }) => {
   const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const dataLayerRef = useRef<any>(null);
+  const infoWindowRef = useRef<any>(null);
   const [selectedLocation, setSelectedLocation] = useState<any>(null);
   const [showSpeciesDialog, setShowSpeciesDialog] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Google Maps loader
+  const GOOGLE_MAPS_API_KEY = 'AIzaSyAZ9wXQZneu30fokTiuF4faAbcX4Q4HCqs';
+  const loadGoogleMaps = (): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if ((window as any).google && (window as any).google.maps) {
+        resolve();
+        return;
+      }
+      const existing = document.getElementById('google-maps-js');
+      if (existing) {
+        existing.addEventListener('load', () => resolve());
+        return;
+      }
+      const script = document.createElement('script');
+      script.id = 'google-maps-js';
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load Google Maps'));
+      document.head.appendChild(script);
+    });
+  };
 
   const regions: RegionData[] = [
     {
@@ -78,144 +106,163 @@ const GlobalMap: React.FC<GlobalMapProps> = ({ selectedRegion, onRegionSelect, o
         { name: 'Phoca hispida', count: 78, color: '#f59e0b' },
         { name: 'Ursus maritimus', count: 45, color: '#ef4444' }
       ]
+    },
+    {
+      id: 'southern',
+      name: 'Southern Ocean',
+      center: [0, -65],
+      bounds: [[-180, -90], [180, -45]],
+      species: [
+        { name: 'Pygoscelis antarcticus', count: 120, color: '#3b82f6' },
+        { name: 'Aptenodytes forsteri', count: 88, color: '#10b981' }
+      ]
     }
   ];
 
   const currentRegion = selectedRegion ? regions.find(r => r.id === selectedRegion) : null;
 
+  const OCEANS_GEOJSON: any = {
+    type: 'FeatureCollection',
+    features: [
+      { type: 'Feature', properties: { id: 'pacific', name: 'Pacific Ocean' }, geometry: { type: 'Polygon', coordinates: [[[-180, -60], [-180, 60], [-100, 60], [-100, -60], [-180, -60]]] } },
+      { type: 'Feature', properties: { id: 'atlantic', name: 'Atlantic Ocean' }, geometry: { type: 'Polygon', coordinates: [[[-80, -60], [-80, 60], [20, 60], [20, -60], [-80, -60]]] } },
+      { type: 'Feature', properties: { id: 'indian', name: 'Indian Ocean' }, geometry: { type: 'Polygon', coordinates: [[[20, -60], [20, 30], [120, 30], [120, -60], [20, -60]]] } },
+      { type: 'Feature', properties: { id: 'arctic', name: 'Arctic Ocean' }, geometry: { type: 'Polygon', coordinates: [[[-180, 60], [-180, 90], [180, 90], [180, 60], [-180, 60]]] } },
+      { type: 'Feature', properties: { id: 'southern', name: 'Southern Ocean' }, geometry: { type: 'Polygon', coordinates: [[[-180, -90], [-180, -45], [180, -45], [180, -90], [-180, -90]]] } }
+    ]
+  };
+
+  const DARK_OCEAN_STYLE: any[] = [
+    { elementType: 'geometry', stylers: [{ color: '#08111c' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#08111c' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#9db7c9' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#06121b' }] },
+    { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#0c1824' }] },
+    { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+    { featureType: 'road', stylers: [{ visibility: 'off' }] },
+    { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+    { featureType: 'administrative', stylers: [{ visibility: 'off' }] }
+  ];
+
   useEffect(() => {
-    if (mapRef.current) {
-      // Simple map visualization using CSS and positioning
-      const mapElement = mapRef.current;
-      mapElement.innerHTML = '';
-      
-      // Create world map background with continents
-      const worldMap = document.createElement('div');
-      worldMap.className = 'absolute inset-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-950 rounded-lg';
-      worldMap.style.backgroundImage = `
-        radial-gradient(circle at 20% 30%, rgba(34, 197, 94, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, rgba(34, 197, 94, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 40% 70%, rgba(34, 197, 94, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 90% 80%, rgba(34, 197, 94, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 10% 80%, rgba(34, 197, 94, 0.1) 0%, transparent 50%)
-      `;
-      mapElement.appendChild(worldMap);
+    let cleaned = false;
+    loadGoogleMaps().then(() => {
+      if (!mapRef.current || cleaned) return;
+      const google = (window as any).google;
 
-      // Add continent outlines (simplified)
-      const continents = [
-        { name: 'North America', path: 'M 10,20 L 30,15 L 35,25 L 25,35 L 15,30 Z', color: 'rgba(34, 197, 94, 0.3)' },
-        { name: 'South America', path: 'M 20,50 L 25,45 L 30,60 L 25,70 L 20,65 Z', color: 'rgba(34, 197, 94, 0.3)' },
-        { name: 'Africa', path: 'M 45,35 L 50,30 L 55,50 L 50,65 L 45,60 Z', color: 'rgba(34, 197, 94, 0.3)' },
-        { name: 'Europe', path: 'M 40,20 L 50,15 L 55,25 L 50,30 L 45,25 Z', color: 'rgba(34, 197, 94, 0.3)' },
-        { name: 'Asia', path: 'M 60,15 L 85,10 L 90,25 L 85,40 L 70,35 L 65,25 Z', color: 'rgba(34, 197, 94, 0.3)' },
-        { name: 'Australia', path: 'M 70,60 L 80,55 L 85,70 L 80,75 L 75,70 Z', color: 'rgba(34, 197, 94, 0.3)' }
-      ];
-
-      continents.forEach(continent => {
-        const continentEl = document.createElement('div');
-        continentEl.innerHTML = `
-          <svg width="100%" height="100%" viewBox="0 0 100 100" style="position: absolute; top: 0; left: 0;">
-            <path d="${continent.path}" fill="${continent.color}" stroke="rgba(34, 197, 94, 0.5)" stroke-width="0.5"/>
-          </svg>
-        `;
-        mapElement.appendChild(continentEl);
-      });
-
-      // Add region highlights (only show when a region is selected)
-      if (selectedRegion) {
-        regions.forEach((region) => {
-          const highlight = document.createElement('div');
-          highlight.className = `absolute rounded-full transition-all duration-500 ${
-            selectedRegion === region.id 
-              ? 'bg-primary/30 shadow-bioluminescent border-2 border-primary' 
-              : 'bg-transparent hover:bg-bioluminescent-teal/20'
-          }`;
-          
-          // Position and size based on region bounds
-          const x = ((region.center[0] + 180) / 360) * 100;
-          const y = ((90 - region.center[1]) / 180) * 100;
-          const width = Math.abs(region.bounds[1][0] - region.bounds[0][0]) / 360 * 100;
-          const height = Math.abs(region.bounds[1][1] - region.bounds[0][1]) / 180 * 100;
-          
-          highlight.style.left = `${x - width/2}%`;
-          highlight.style.top = `${y - height/2}%`;
-          highlight.style.width = `${width}%`;
-          highlight.style.height = `${height}%`;
-          highlight.style.borderRadius = '50%';
-          
-          highlight.addEventListener('click', () => {
-            onRegionSelect(region.id);
-            setSelectedLocation(region);
-            setShowSpeciesDialog(true);
-          });
-          
-          mapElement.appendChild(highlight);
+      if (!mapInstanceRef.current) {
+        mapInstanceRef.current = new google.maps.Map(mapRef.current, {
+          center: { lat: 0, lng: 0 },
+          zoom: 2,
+          minZoom: 2,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false
         });
       }
 
-      // Add region markers (always visible but styled differently based on selection)
-      regions.forEach((region, index) => {
-        const marker = document.createElement('div');
-        marker.className = `absolute w-6 h-6 rounded-full cursor-pointer transition-all duration-300 flex items-center justify-center ${
-          selectedRegion === region.id 
-            ? 'bg-primary shadow-bioluminescent scale-125 border-2 border-white' 
-            : 'bg-bioluminescent-teal hover:scale-110 border border-white/50'
-        }`;
-        
-        // Position markers based on region center
-        const x = ((region.center[0] + 180) / 360) * 100;
-        const y = ((90 - region.center[1]) / 180) * 100;
-        
-        marker.style.left = `${x}%`;
-        marker.style.top = `${y}%`;
-        marker.style.transform = 'translate(-50%, -50%)';
-        
-        // Add marker number
-        marker.innerHTML = `<span class="text-xs font-bold text-white">${index + 1}</span>`;
-        
-        marker.addEventListener('click', () => {
+      const map = mapInstanceRef.current;
+
+      if (!dataLayerRef.current) {
+        dataLayerRef.current = new google.maps.Data({ map });
+        dataLayerRef.current.addGeoJson(OCEANS_GEOJSON);
+      }
+
+      if (!infoWindowRef.current) {
+        infoWindowRef.current = new google.maps.InfoWindow({ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -10) });
+      }
+
+      const dataLayer = dataLayerRef.current;
+      const baseFill = '#0ea5a4';
+      const baseStroke = '#22d3ee';
+      const hoverStroke = '#a78bfa';
+      const selectedFill = '#22d3ee';
+
+      dataLayer.setStyle((feature: any) => {
+        const isSelected = selectedId && feature.getProperty('id') === selectedId;
+        return {
+          fillColor: isSelected ? selectedFill : baseFill,
+          fillOpacity: isSelected ? 0.25 : 0.12,
+          strokeColor: isSelected ? hoverStroke : baseStroke,
+          strokeOpacity: 0.7,
+          strokeWeight: isSelected ? 2 : 1
+        };
+      });
+
+      dataLayer.addListener('mouseover', (e: any) => {
+        const name = e.feature.getProperty('name');
+        if (name) {
+          infoWindowRef.current.setContent(`<div style=\"padding:6px 10px;font-weight:600;color:#eaf9ff\">${name}</div>`);
+          infoWindowRef.current.setPosition(e.latLng);
+          infoWindowRef.current.open(map);
+        }
+        dataLayer.overrideStyle(e.feature, { strokeColor: hoverStroke, strokeWeight: 2, fillOpacity: 0.18 });
+      });
+      dataLayer.addListener('mouseout', (e: any) => {
+        infoWindowRef.current.close();
+        dataLayer.revertStyle(e.feature);
+      });
+
+      dataLayer.addListener('click', (e: any) => {
+        const id = e.feature.getProperty('id');
+        const name = e.feature.getProperty('name');
+        setSelectedId(id);
+        const region = regions.find(r => r.id === id);
+        if (region) {
           onRegionSelect(region.id);
           setSelectedLocation(region);
           setShowSpeciesDialog(true);
-        });
-        
-        mapElement.appendChild(marker);
+        }
+        // eslint-disable-next-line no-console
+        console.log('Ocean clicked:', name);
+        dataLayer.setStyle(dataLayer.getStyle());
       });
 
-      // Add region labels (always visible but styled differently based on selection)
-      regions.forEach((region) => {
-        const label = document.createElement('div');
-        label.className = `absolute text-sm text-white font-medium pointer-events-none transition-all duration-300 ${
-          selectedRegion === region.id ? 'text-primary font-bold' : 'text-white/80'
-        }`;
-        label.textContent = region.name;
-        
-        const x = ((region.center[0] + 180) / 360) * 100;
-        const y = ((90 - region.center[1]) / 180) * 100;
-        
-        label.style.left = `${x}%`;
-        label.style.top = `${y + 4}%`;
-        label.style.transform = 'translate(-50%, -50%)';
-        label.style.textShadow = '0 0 10px rgba(0,0,0,0.8)';
-        
-        mapElement.appendChild(label);
-      });
+      const fitTo = () => {
+        let bounds;
+        if (selectedRegion) {
+          switch (selectedRegion) {
+            case 'pacific':
+              bounds = new google.maps.LatLngBounds(new google.maps.LatLng(-60, -180), new google.maps.LatLng(60, -100));
+              break;
+            case 'atlantic':
+              bounds = new google.maps.LatLngBounds(new google.maps.LatLng(-60, -80), new google.maps.LatLng(60, 20));
+              break;
+            case 'indian':
+              bounds = new google.maps.LatLngBounds(new google.maps.LatLng(-60, 20), new google.maps.LatLng(30, 120));
+              break;
+            case 'arctic':
+              bounds = new google.maps.LatLngBounds(new google.maps.LatLng(60, -180), new google.maps.LatLng(90, 180));
+              break;
+            case 'southern':
+              bounds = new google.maps.LatLngBounds(new google.maps.LatLng(-90, -180), new google.maps.LatLng(-45, 180));
+              break;
+            default:
+              bounds = null;
+          }
+        }
+        if (!bounds) bounds = new google.maps.LatLngBounds(new google.maps.LatLng(-60, -180), new google.maps.LatLng(60, 180));
+        map.fitBounds(bounds);
+      };
+      fitTo();
 
-      // Add grid lines for better visualization
-      const grid = document.createElement('div');
-      grid.innerHTML = `
-        <svg width="100%" height="100%" style="position: absolute; top: 0; left: 0; opacity: 0.3;">
-          <defs>
-            <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-              <path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(59, 130, 246, 0.3)" stroke-width="0.5"/>
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-        </svg>
-      `;
-      mapElement.appendChild(grid);
-    }
-  }, [selectedRegion, onRegionSelect]);
+      // Optional: WebGL overlay skeleton
+      if (google.maps.WebGLOverlayView) {
+        const overlay = new google.maps.WebGLOverlayView();
+        overlay.onContextRestored = ({ gl }: any) => {
+          gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        };
+        overlay.onDraw = ({ gl }: any) => {
+          gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        };
+        overlay.setMap(map);
+      }
+    });
+
+    return () => {
+      cleaned = true;
+    };
+  }, [selectedRegion, onRegionSelect, selectedId]);
 
   const chartData = selectedLocation?.species.map(species => ({
     name: species.name.split(' ')[0], // Use genus only for cleaner display
@@ -228,7 +275,6 @@ const GlobalMap: React.FC<GlobalMapProps> = ({ selectedRegion, onRegionSelect, o
       <div 
         ref={mapRef} 
         className="relative w-full h-full min-h-[500px] rounded-lg overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)' }}
       />
       
       <Dialog open={showSpeciesDialog} onOpenChange={setShowSpeciesDialog}>
