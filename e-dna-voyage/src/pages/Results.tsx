@@ -5,11 +5,10 @@ import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { AbyssBackground } from '@/components/AbyssBackground';
-import { DataVisualization } from '@/components/DataVisualization';
+import { PhylogeneticTree, type TaxonNode } from '@/components/PhylogeneticTree';
 import { ZoneGrid, ZoneState } from '@/components/ZoneGrid';
 import { useAnalysis, type AnalysisResult } from '@/contexts/AnalysisContext';
 import { 
-  BarChart3, 
   Dna, 
   Eye, 
   Download, 
@@ -21,6 +20,7 @@ import {
   Microscope,
   Star
 } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
 interface LegacyAnalysisResult {
   id: string;
@@ -37,8 +37,10 @@ interface LegacyAnalysisResult {
 const Results = () => {
   const [step, setStep] = useState<number>(2); // 1-5 like in the mock
   const [zoneStates, setZoneStates] = useState<ZoneState[]>(Array.from({ length: 64 }, () => 'inactive'));
+  const [zoneAggregationLevel, setZoneAggregationLevel] = useState<'phylum' | 'class'>('phylum');
   
   const { analysisResults, uploadedFiles } = useAnalysis();
+  const { toast } = useToast();
   
   // Set default selected result to first uploaded analysis or first legacy result
   const [selectedResult, setSelectedResult] = useState<string>(() => {
@@ -57,33 +59,33 @@ const Results = () => {
     setZoneStates(Array.from({ length: 64 }, () => 'inactive'));
 
     if (step === 2) {
-      // Searching many zones
-      const indices = [6, 11, 33];
-      setZoneStates((prev) => prev.map((_, i) => (indices.includes(i) ? 'selecting' : 'searching')));
+      // Aggregate by selected taxonomic level rather than species
+      const selectedIndex = zoneAggregationLevel === 'phylum' ? 22 : 33;
+      setZoneStates((prev) => prev.map((_, i) => (i === selectedIndex ? 'selecting' : 'searching')));
       timers.push(window.setTimeout(() => mounted && setStep(3), 1800));
     }
     if (step === 3) {
-      // Focus on the 3 selected zones
-      const indices = [6, 11, 33];
-      setZoneStates((prev) => prev.map((_, i) => (indices.includes(i) ? 'comparing' : 'inactive')));
+      // Focus on the selected aggregated zone
+      const selectedIndex = zoneAggregationLevel === 'phylum' ? 22 : 33;
+      setZoneStates((prev) => prev.map((_, i) => (i === selectedIndex ? 'comparing' : 'inactive')));
       timers.push(window.setTimeout(() => mounted && setStep(4), 1800));
     }
     if (step === 4) {
       // Merging results
-      const indices = [6, 11, 33];
-      setZoneStates((prev) => prev.map((_, i) => (indices.includes(i) ? 'merging' : 'inactive')));
+      const selectedIndex = zoneAggregationLevel === 'phylum' ? 22 : 33;
+      setZoneStates((prev) => prev.map((_, i) => (i === selectedIndex ? 'merging' : 'inactive')));
       timers.push(window.setTimeout(() => mounted && setStep(5), 1600));
     }
     if (step === 5) {
-      const indices = [6, 11, 33];
-      setZoneStates((prev) => prev.map((_, i) => (indices.includes(i) ? 'complete' : 'inactive')));
+      const selectedIndex = zoneAggregationLevel === 'phylum' ? 22 : 33;
+      setZoneStates((prev) => prev.map((_, i) => (i === selectedIndex ? 'complete' : 'inactive')));
     }
 
     return () => {
       mounted = false;
       timers.forEach((t) => window.clearTimeout(t));
     };
-  }, [step]);
+  }, [step, zoneAggregationLevel]);
 
   // Legacy analysis results for demo purposes
   const legacyAnalysisResults: LegacyAnalysisResult[] = [
@@ -153,38 +155,99 @@ const Results = () => {
   // Combine legacy and new results
   const allAnalysisResults = [...convertedAnalysisResults, ...legacyAnalysisResults];
 
-  const novelSpeciesData = [
-    {
-      name: 'Bathypelagic Cephalopod SP-001',
-      confidence: 96.2,
-      sequences: 1247,
-      classification: 'Likely new species',
-      color: 'text-primary'
-    },
-    {
-      name: 'Hadal Xenophyophore SP-002',
-      confidence: 94.8,
-      sequences: 892,
-      classification: 'Novel genus candidate',
-      color: 'text-bioluminescent-teal'
-    },
-    {
-      name: 'Abyssal Polychaete SP-003',
-      confidence: 92.1,
-      sequences: 654,
-      classification: 'Unknown family',
-      color: 'text-bioluminescent-purple'
-    },
-    {
-      name: 'Deep Sea Copepod SP-004',
-      confidence: 88.7,
-      sequences: 423,
-      classification: 'Potential new order',
-      color: 'text-coral-glow'
-    }
-  ];
+  // Only show species derived from the user's selected file data
+  const currentAnalysisFromContext = analysisResults.find(r => r.id === selectedResult);
+  const novelSpeciesData = currentAnalysisFromContext
+    ? [
+        {
+          name: currentAnalysisFromContext.species,
+          confidence: currentAnalysisFromContext.confidence,
+          sequences: Math.max(1, Math.round(currentAnalysisFromContext.totalSequences * 0.01)),
+          classification: currentAnalysisFromContext.novelSpecies > 0 ? 'Potentially novel' : 'Known match',
+          color: currentAnalysisFromContext.novelSpecies > 0 ? 'text-coral-glow' : 'text-bioluminescent-teal',
+        },
+      ]
+    : [];
 
   const currentResult = allAnalysisResults.find(r => r.id === selectedResult) || allAnalysisResults[0];
+  const formatPercent = (n: number, digits: number = 4) => {
+    if (Number.isFinite(n)) return Number(n).toFixed(digits);
+    return '0.0000';
+  };
+
+  const handleExport = () => {
+    try {
+      const dataStr = JSON.stringify(currentResult, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${currentResult.sampleName || 'analysis'}-${currentResult.id}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Exported', description: 'Analysis JSON downloaded.' });
+    } catch (e) {
+      toast({ title: 'Export failed', description: 'Could not export analysis.', variant: 'destructive' as any });
+    }
+  };
+
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/results?selected=${encodeURIComponent(currentResult.id)}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'e-dna-voyage Result', text: currentResult.sampleName, url: shareUrl });
+        toast({ title: 'Shared', description: 'Share sheet opened.' });
+        return;
+      }
+      await navigator.clipboard.writeText(shareUrl);
+      toast({ title: 'Link copied', description: 'Share URL copied to clipboard.' });
+    } catch (e) {
+      toast({ title: 'Share failed', description: 'Could not share or copy link.', variant: 'destructive' as any });
+    }
+  };
+
+  // Example tree. In a real pipeline this would be produced from the sample classification results
+  const exampleTree: TaxonNode = {
+    name: 'Life',
+    rank: 'root',
+    children: [
+      {
+        name: 'Animalia',
+        rank: 'kingdom',
+        children: [
+          {
+            name: 'Cnidaria',
+            rank: 'phylum',
+            children: [
+              {
+                name: 'Medusozoa',
+                rank: 'class',
+                children: [
+                  {
+                    name: 'Hydrozoa',
+                    rank: 'order',
+                    children: [
+                      {
+                        name: 'Aequorea',
+                        rank: 'genus',
+                        children: [
+                          { name: 'Aequorea victoria', rank: 'species' }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  };
+
+  const highlightedPath = ['Animalia', 'Cnidaria', 'Medusozoa', 'Hydrozoa', 'Aequorea', 'Aequorea victoria'];
 
   return (
     <div className="relative min-h-screen pt-16">
@@ -261,11 +324,11 @@ const Results = () => {
                   {currentResult.sampleName}
                 </h2>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="border-primary text-primary hover:bg-primary/10">
+                  <Button size="sm" variant="outline" className="border-primary text-primary hover:bg-primary/10" onClick={handleExport}>
                     <Download className="w-4 h-4 mr-2" />
                     Export
                   </Button>
-                  <Button size="sm" variant="outline" className="border-accent text-accent hover:bg-accent/10">
+                  <Button size="sm" variant="outline" className="border-accent text-accent hover:bg-accent/10" onClick={handleShare}>
                     <Share2 className="w-4 h-4 mr-2" />
                     Share
                   </Button>
@@ -293,7 +356,7 @@ const Results = () => {
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-species-glow mb-1">
-                    {currentResult.confidence}%
+                    {formatPercent(currentResult.confidence)}%
                   </div>
                   <div className="text-sm text-muted-foreground">Confidence</div>
                 </div>
@@ -302,11 +365,10 @@ const Results = () => {
 
             {/* Detailed Results Tabs */}
             <Tabs defaultValue="overview" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-4 bg-card/50">
+              <TabsList className="grid w-full grid-cols-3 bg-card/50">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="novel">Novel Species</TabsTrigger>
                 <TabsTrigger value="taxonomy">Taxonomy</TabsTrigger>
-                <TabsTrigger value="network">Network</TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview" className="space-y-6">
@@ -316,7 +378,18 @@ const Results = () => {
                     <h3 className="font-montserrat font-semibold text-foreground">
                       ZHNSW Algorithm Analysis
                     </h3>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">Aggregation</span>
+                        <select
+                          className="bg-card/50 border border-border/20 rounded px-2 py-1 text-foreground"
+                          value={zoneAggregationLevel}
+                          onChange={(e) => setZoneAggregationLevel(e.target.value as 'phylum' | 'class')}
+                        >
+                          <option value="phylum">Phylum</option>
+                          <option value="class">Class</option>
+                        </select>
+                      </div>
                       <span className={`px-2 py-1 rounded-md border border-border/20 ${step >= 2 ? 'bg-primary/20 text-primary' : ''}`}>1</span>
                       <span className={`px-2 py-1 rounded-md border border-border/20 ${step >= 2 ? 'bg-primary/20 text-primary' : ''}`}>2</span>
                       <span className={`px-2 py-1 rounded-md border border-border/20 ${step >= 3 ? 'bg-primary/20 text-primary' : ''}`}>3</span>
@@ -409,24 +482,28 @@ const Results = () => {
                     <Star className="w-5 h-5 text-coral-glow" />
                     Novel Species Discoveries
                   </h3>
-                  <div className="space-y-4">
-                    {novelSpeciesData.map((species, index) => (
-                      <div key={index} className="p-4 rounded-lg bg-muted/10 border border-border/20">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className={`font-medium ${species.color}`}>
-                            {species.name}
-                          </h4>
-                          <Badge className="bg-species-glow/20 text-species-glow">
-                            {species.confidence}% confidence
-                          </Badge>
+                  {novelSpeciesData.length > 0 ? (
+                    <div className="space-y-4">
+                      {novelSpeciesData.map((species, index) => (
+                        <div key={index} className="p-4 rounded-lg bg-muted/10 border border-border/20">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className={`font-medium ${species.color}`}>
+                              {species.name}
+                            </h4>
+                            <Badge className="bg-species-glow/20 text-species-glow">
+                              {formatPercent(species.confidence)}% confidence
+                            </Badge>
+                          </div>
+                          <div className="flex items-center justify-between text-sm text-muted-foreground">
+                            <span>{species.sequences} sequences analyzed</span>
+                            <span className="font-medium text-foreground">{species.classification}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between text-sm text-muted-foreground">
-                          <span>{species.sequences} sequences analyzed</span>
-                          <span className="font-medium text-foreground">{species.classification}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">No novel species identified for this sample.</div>
+                  )}
                 </Card>
               </TabsContent>
 
@@ -437,29 +514,33 @@ const Results = () => {
                     Taxonomic Classification
                   </h3>
                   <div className="space-y-4">
-                    <div className="text-sm text-muted-foreground mb-4">
-                      AI-powered classification results with phylogenetic analysis
+                    <div className="text-sm text-muted-foreground mb-2">
+                      Phylogenetic Tree Visualization — DNA match hone ke baad interactive tree dikhata hai. Example path: Jellyfish DNA → Cnidaria → Medusozoa → Aequorea victoria.
                     </div>
-                    {/* Placeholder for taxonomic tree visualization */}
-                    <div className="h-64 rounded-lg bg-muted/10 border border-border/20 flex items-center justify-center">
-                      <div className="text-center">
-                        <Dna className="w-12 h-12 text-primary mx-auto mb-2 animate-glow" />
-                        <p className="text-muted-foreground">Taxonomic tree visualization</p>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="h-80">
+                        <PhylogeneticTree root={exampleTree} highlightPath={highlightedPath} />
+                      </div>
+                      <div className="rounded-lg bg-muted/10 border border-border/20 p-4 text-sm text-muted-foreground">
+                        <div className="font-montserrat font-semibold text-foreground mb-2">Highlighted Path</div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {highlightedPath.map((name, idx) => (
+                            <>
+                              <span key={name} className="px-2 py-1 rounded bg-primary/15 text-foreground border border-border/20">{name}</span>
+                              {idx < highlightedPath.length - 1 && <span className="opacity-60">→</span>}
+                            </>
+                          ))}
+                        </div>
+                        <div className="mt-3 text-xs">
+                          Path shows where your sample best fits in the tree based on sequence similarity.
+                        </div>
                       </div>
                     </div>
                   </div>
                 </Card>
               </TabsContent>
 
-              <TabsContent value="network" className="space-y-6">
-                <Card className="deep-card p-6 border border-border/20">
-                  <h3 className="font-montserrat font-semibold mb-6 text-foreground flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5 text-accent" />
-                    Species Interaction Network
-                  </h3>
-                  <DataVisualization />
-                </Card>
-              </TabsContent>
+              
             </Tabs>
           </div>
         </div>

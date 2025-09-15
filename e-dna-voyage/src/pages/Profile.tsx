@@ -7,6 +7,12 @@ import { AbyssBackground } from '@/components/AbyssBackground';
 import { useUser } from '@/contexts/UserContext';
 import EditProfileModal from '@/components/EditProfileModal';
 import { 
+  ChangePasswordModal, 
+  EmailVerificationModal, 
+  DownloadDataModal, 
+  EmailNotificationsModal 
+} from '@/components/SettingsModals';
+import { 
   User, 
   Settings, 
   Award, 
@@ -25,13 +31,23 @@ import {
   Download,
   CheckCircle,
   FileText,
-  FolderOpen
+  FolderOpen,
+  Lock,
+  Shield,
+  Bell
 } from 'lucide-react';
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showUpdateSuccess, setShowUpdateSuccess] = useState(false);
+  
+  // Settings modal states
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showEmailVerification, setShowEmailVerification] = useState(false);
+  const [showDownloadData, setShowDownloadData] = useState(false);
+  const [showEmailNotifications, setShowEmailNotifications] = useState(false);
+  
   const { user, isAuthenticated, logout } = useUser();
 
 
@@ -391,45 +407,58 @@ const Profile = () => {
           <TabsContent value="settings" className="space-y-6">
             <div className="grid lg:grid-cols-2 gap-6">
               <Card className="deep-card p-6 border border-border/20">
-                <h3 className="font-montserrat font-semibold mb-4 text-foreground">
-                  Account Settings
+                <h3 className="font-montserrat font-semibold mb-4 text-foreground flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-primary" />
+                  Email Notifications
                 </h3>
                 <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-foreground block mb-2">
-                      Email Notifications
-                    </label>
-                    <div className="space-y-2 text-sm">
-                      <label className="flex items-center gap-2">
-                        <input type="checkbox" defaultChecked className="rounded" />
-                        <span className="text-muted-foreground">Project updates</span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input type="checkbox" defaultChecked className="rounded" />
-                        <span className="text-muted-foreground">New discoveries</span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input type="checkbox" className="rounded" />
-                        <span className="text-muted-foreground">Collaboration invites</span>
-                      </label>
-                    </div>
-                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Customize which email notifications you'd like to receive. Only selected topics will send emails.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full border-primary text-primary hover:bg-primary/10"
+                    onClick={() => setShowEmailNotifications(true)}
+                  >
+                    <Bell className="w-4 h-4 mr-2" />
+                    Manage Email Preferences
+                  </Button>
                 </div>
               </Card>
 
               <Card className="deep-card p-6 border border-border/20">
-                <h3 className="font-montserrat font-semibold mb-4 text-foreground">
+                <h3 className="font-montserrat font-semibold mb-4 text-foreground flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-bioluminescent-teal" />
                   Privacy & Security
                 </h3>
                 <div className="space-y-4">
-                  <Button variant="outline" size="sm" className="w-full border-primary text-primary hover:bg-primary/10">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full border-primary text-primary hover:bg-primary/10"
+                    onClick={() => setShowChangePassword(true)}
+                  >
+                    <Lock className="w-4 h-4 mr-2" />
                     Change Password
                   </Button>
-                  <Button variant="outline" size="sm" className="w-full border-bioluminescent-teal text-bioluminescent-teal hover:bg-bioluminescent-teal/10">
-                    Enable 2FA
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full border-bioluminescent-teal text-bioluminescent-teal hover:bg-bioluminescent-teal/10"
+                    onClick={() => setShowEmailVerification(true)}
+                  >
+                    <Mail className="w-4 h-4 mr-2" />
+                    Enable Email Verification
                   </Button>
-                  <Button variant="outline" size="sm" className="w-full border-muted-foreground text-muted-foreground hover:bg-muted/10">
-                    Download Data
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full border-muted-foreground text-muted-foreground hover:bg-muted/10"
+                    onClick={() => setShowDownloadData(true)}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download My Data
                   </Button>
                 </div>
               </Card>
@@ -446,6 +475,27 @@ const Profile = () => {
           setShowUpdateSuccess(true);
           setTimeout(() => setShowUpdateSuccess(false), 5000);
         }}
+      />
+
+      {/* Settings Modals */}
+      <ChangePasswordModal
+        isOpen={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+      />
+      
+      <EmailVerificationModal
+        isOpen={showEmailVerification}
+        onClose={() => setShowEmailVerification(false)}
+      />
+      
+      <DownloadDataModal
+        isOpen={showDownloadData}
+        onClose={() => setShowDownloadData(false)}
+      />
+      
+      <EmailNotificationsModal
+        isOpen={showEmailNotifications}
+        onClose={() => setShowEmailNotifications(false)}
       />
     </div>
   );

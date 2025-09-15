@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import DatePicker from '@/components/ui/date-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -21,7 +22,6 @@ import {
   Users, 
   BarChart3,
   Eye,
-  Settings,
   Star,
   Dna,
   Fish,
@@ -377,19 +377,10 @@ const Projects = () => {
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="start-date" className="text-foreground font-medium">Start Date *</Label>
-                      <Input
-                        id="start-date"
-                        type="date"
+                      <DatePicker
                         value={newProjectForm.startDate}
-                        onChange={(e) => handleFormChange('startDate', e.target.value)}
-                        className={`mt-1 bg-card border-border/20 text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 ${
-                          newProjectForm.startDate && newProjectForm.endDate && 
-                          new Date(newProjectForm.endDate) <= new Date(newProjectForm.startDate)
-                            ? 'border-destructive focus:border-destructive'
-                            : ''
-                        }`}
-                        min={new Date().toISOString().split('T')[0]} // Prevent selecting past dates
-                        required
+                        onChange={(v) => handleFormChange('startDate', v)}
+                        minDate={new Date()}
                       />
                       <p className="text-xs text-muted-foreground mt-1">
                         Select when the project will begin
@@ -398,19 +389,10 @@ const Projects = () => {
                     
                     <div>
                       <Label htmlFor="end-date" className="text-foreground font-medium">End Date *</Label>
-                      <Input
-                        id="end-date"
-                        type="date"
+                      <DatePicker
                         value={newProjectForm.endDate}
-                        onChange={(e) => handleFormChange('endDate', e.target.value)}
-                        className={`mt-1 bg-card border-border/20 text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 ${
-                          newProjectForm.startDate && newProjectForm.endDate && 
-                          new Date(newProjectForm.endDate) <= new Date(newProjectForm.startDate)
-                            ? 'border-destructive focus:border-destructive'
-                            : ''
-                        }`}
-                        min={newProjectForm.startDate || new Date().toISOString().split('T')[0]} // End date must be after start date
-                        required
+                        onChange={(v) => handleFormChange('endDate', v)}
+                        minDate={newProjectForm.startDate ? new Date(newProjectForm.startDate) : new Date()}
                       />
                       <p className="text-xs text-muted-foreground mt-1">
                         Select when the project will end
@@ -657,9 +639,6 @@ const Projects = () => {
                   >
                     <BarChart3 className="w-4 h-4 mr-2" />
                     Results
-                  </Button>
-                  <Button size="sm" variant="ghost">
-                    <Settings className="w-4 h-4" />
                   </Button>
                 </div>
               </div>

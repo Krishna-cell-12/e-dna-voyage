@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AbyssBackground } from '@/components/AbyssBackground';
-import { SpeciesDiscovery } from '@/components/SpeciesDiscovery';
 import { Dna, Zap, Eye, Database, Brain, Waves, Upload, BarChart3 } from 'lucide-react';
 import deepSeaHero from '@/assets/deep-sea-hero.jpg';
 import aiPipelineImage from '@/assets/ai-pipeline.jpg';
@@ -213,8 +212,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Species Discovery Section */}
-      <SpeciesDiscovery />
+      {/* Species Discovery Section removed */}
 
       {/* Impact Section */}
       <section className="relative py-20 z-10">

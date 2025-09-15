@@ -3,21 +3,15 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { AbyssBackground } from '@/components/AbyssBackground';
 import GlobalMap from '@/components/GlobalMap';
 import { 
   Globe, 
-  Layers, 
   Activity, 
-  Zap, 
   Brain,
   TrendingUp,
   MapPin,
-  Filter,
-  PlayCircle,
-  PauseCircle,
-  RotateCcw
+  Filter
 } from 'lucide-react';
 
 interface BiodiversityData {
@@ -31,8 +25,7 @@ interface BiodiversityData {
 }
 
 const Dashboard = () => {
-  const [selectedDepth, setSelectedDepth] = useState(2000);
-  const [isTimelapseActive, setIsTimelapseActive] = useState(false);
+  // Removed depth and timelapse controls
   const [selectedRegion, setSelectedRegion] = useState('');
 
   const biodiversityData: BiodiversityData[] = [
@@ -65,9 +58,7 @@ const Dashboard = () => {
     }
   ];
 
-  const toggleTimelapse = () => {
-    setIsTimelapseActive(!isTimelapseActive);
-  };
+  // Timelapse removed
 
   const handleRegionSelect = (region: string) => {
     setSelectedRegion(region);
@@ -92,26 +83,10 @@ const Dashboard = () => {
           </p>
         </div>
 
-        {/* Control Panel */}
+        {/* Control Panel (simplified) */}
         <Card className="futuristic-card p-6 mb-8 border border-border/20">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Layers className="w-5 h-5 text-neon-teal" />
-                <span className="text-sm font-medium text-foreground">Depth:</span>
-                <select 
-                  value={selectedDepth}
-                  onChange={(e) => setSelectedDepth(Number(e.target.value))}
-                  className="bg-card border border-border/20 rounded px-3 py-1 text-sm text-foreground"
-                >
-                  <option value={0}>Surface - 200m</option>
-                  <option value={200}>200m - 1000m</option>
-                  <option value={1000}>1000m - 4000m</option>
-                  <option value={4000}>4000m - 6000m</option>
-                  <option value={6000}>6000m+</option>
-                </select>
-              </div>
-              
               <div className="flex items-center gap-2">
                 <Filter className="w-5 h-5 text-neon-purple" />
                 <span className="text-sm font-medium text-foreground">Region:</span>
@@ -127,29 +102,6 @@ const Dashboard = () => {
                   <option value="arctic">Arctic Ocean</option>
                 </select>
               </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={toggleTimelapse}
-                className={`${isTimelapseActive ? 'bg-neural-pink' : 'bg-primary'} hover:opacity-90 shadow-neon neural-pulse`}
-              >
-                {isTimelapseActive ? (
-                  <>
-                    <PauseCircle className="w-4 h-4 mr-2" />
-                    Pause
-                  </>
-                ) : (
-                  <>
-                    <PlayCircle className="w-4 h-4 mr-2" />
-                    Time-lapse
-                  </>
-                )}
-              </Button>
-              <Button variant="outline" className="border-primary text-primary hover:bg-primary/10">
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Reset View
-              </Button>
             </div>
           </div>
         </Card>
@@ -172,14 +124,7 @@ const Dashboard = () => {
                 />
               </div>
 
-              {/* Depth Slider */}
-              <div className="mt-6">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-foreground">Depth Range</span>
-                  <span className="text-sm text-neon-cyan">{selectedDepth}m - {selectedDepth + 2000}m</span>
-                </div>
-                <Progress value={(selectedDepth / 11000) * 100} className="h-3" />
-              </div>
+              {/* Depth slider removed */}
             </Card>
 
             {/* Storytelling Mode */}
@@ -253,32 +198,7 @@ const Dashboard = () => {
               </div>
             </Card>
 
-            {/* AI Processing */}
-            <Card className="futuristic-card p-6 border border-border/20">
-              <h3 className="font-montserrat font-semibold mb-4 text-foreground flex items-center gap-2">
-                <Zap className="w-5 h-5 text-neon-cyan" />
-                Neural Processing
-              </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">DNA Sequences</span>
-                  <span className="text-sm font-medium text-neon-cyan">Processing...</span>
-                </div>
-                <Progress value={78} className="h-2" />
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Species Classification</span>
-                  <span className="text-sm font-medium text-neon-teal">92%</span>
-                </div>
-                <Progress value={92} className="h-2" />
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Novel Detection</span>
-                  <span className="text-sm font-medium text-neon-purple">87%</span>
-                </div>
-                <Progress value={87} className="h-2" />
-              </div>
-            </Card>
+            {/* Neural Processing panel removed */}
           </div>
         </div>
 
