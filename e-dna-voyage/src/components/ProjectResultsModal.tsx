@@ -20,6 +20,7 @@ import {
   FileText,
   Database
 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 interface ProjectResultsModalProps {
   isOpen: boolean;
@@ -100,6 +101,96 @@ const ProjectResultsModal: React.FC<ProjectResultsModalProps> = ({ isOpen, onClo
     return 'text-destructive';
   };
 
+  const handleExportAll = async () => {
+    try {
+      const ensureJsPdf = () => new Promise<void>((resolve, reject) => {
+        if ((window as any).jspdf?.jsPDF) return resolve();
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('Failed to load jsPDF'));
+        document.body.appendChild(s);
+      });
+      await ensureJsPdf();
+      const { jsPDF } = (window as any).jspdf;
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+      let y = 48;
+      doc.setFontSize(18); doc.text(`${project.name} – Results`, 40, y); y += 24;
+      doc.setFontSize(11); doc.text(`${project.description || ''}`, 40, y); y += 18;
+      const overview = [
+        `Files Analyzed: ${fileAnalysisResults.length}`,
+        `Total Sequences: ${fileAnalysisResults.reduce((s,f)=>s+f.totalSequences,0).toLocaleString()}`,
+        `Novel Species: ${fileAnalysisResults.reduce((s,f)=>s+f.novelSpecies,0)}`,
+        `Avg Confidence: ${Math.round(fileAnalysisResults.reduce((s,f)=>s+f.confidence,0)/fileAnalysisResults.length)}%`,
+      ];
+      overview.forEach((t) => { doc.setFontSize(12); doc.text(t, 40, y); y += 16; });
+      y += 8;
+      doc.setFontSize(14); doc.text('File Analysis', 40, y); y += 18;
+      doc.setFontSize(11);
+      fileAnalysisResults.forEach((f) => {
+        [
+          `File: ${f.fileName}`,
+          `Status: ${f.analysisStatus}`,
+          `Total Sequences: ${f.totalSequences.toLocaleString()}`,
+          `Known: ${f.knownSpecies}`,
+          `Novel: ${f.novelSpecies}`,
+          `Quality: ${f.qualityScore}%`,
+          `Uploaded: ${f.uploadDate}`,
+          `Processing Time: ${f.processingTime}`,
+        ].forEach((t) => { doc.text(t, 40, y); y += 14; });
+        y += 6;
+        if (y > doc.internal.pageSize.getHeight() - 72) { doc.addPage(); y = 48; }
+      });
+      doc.setFontSize(10);
+      doc.text(`Exported ${new Date().toLocaleString()}`, 40, doc.internal.pageSize.getHeight() - 24);
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `${project.name.replace(/\s+/g,'_')}_results.pdf`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      toast({ title: 'Exported', description: 'PDF downloaded with results details.' });
+    } catch (err) {
+      toast({ title: 'Export failed', description: 'Could not generate the results PDF.' });
+    }
+  };
+
+  const handleShareResults = async () => {
+    try {
+      const ensureJsPdf = () => new Promise<void>((resolve, reject) => {
+        if ((window as any).jspdf?.jsPDF) return resolve();
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('Failed to load jsPDF'));
+        document.body.appendChild(s);
+      });
+      await ensureJsPdf();
+      const { jsPDF } = (window as any).jspdf;
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+      let y = 48;
+      doc.setFontSize(18); doc.text(`${project.name} – Results`, 40, y); y += 24;
+      doc.setFontSize(12);
+      [
+        `Files: ${fileAnalysisResults.length}`,
+        `Total Sequences: ${fileAnalysisResults.reduce((s,f)=>s+f.totalSequences,0).toLocaleString()}`,
+        `Novel Species: ${fileAnalysisResults.reduce((s,f)=>s+f.novelSpecies,0)}`,
+      ].forEach((t) => { doc.text(t, 40, y); y += 16; });
+      const blob = doc.output('blob');
+      const file = new File([blob], `${project.name.replace(/\s+/g,'_')}_results.pdf`, { type: 'application/pdf' });
+      if ((navigator as any).canShare && (navigator as any).canShare({ files: [file] })) {
+        await (navigator as any).share({ title: `${project.name} – Results`, text: 'eDNA results PDF', files: [file] });
+        return;
+      }
+      const shareUrl = `${window.location.origin}/results?projectId=${encodeURIComponent(project.id)}`;
+      if (navigator.share) {
+        await navigator.share({ title: `${project.name} – Results`, text: 'eDNA results', url: shareUrl });
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        toast({ title: 'Link copied', description: 'Results link copied to clipboard.' });
+      }
+    } catch (err) {
+      // ignore cancel
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
@@ -120,11 +211,11 @@ const ProjectResultsModal: React.FC<ProjectResultsModalProps> = ({ isOpen, onClo
                 <p className="text-muted-foreground">{project.description}</p>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" onClick={handleExportAll}>
                   <Download className="w-4 h-4 mr-2" />
                   Export All
                 </Button>
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" onClick={handleShareResults}>
                   <Share2 className="w-4 h-4 mr-2" />
                   Share Results
                 </Button>

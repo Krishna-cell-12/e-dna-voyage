@@ -20,6 +20,7 @@ import {
   Activity,
   Zap
 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 interface ProjectDetailsModalProps {
   isOpen: boolean;
@@ -87,6 +88,124 @@ const ProjectDetailsModal: React.FC<ProjectDetailsModalProps> = ({ isOpen, onClo
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const ensureJsPdf = () => new Promise<void>((resolve, reject) => {
+        if ((window as any).jspdf?.jsPDF) return resolve();
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('Failed to load jsPDF'));
+        document.body.appendChild(s);
+      });
+      await ensureJsPdf();
+      const { jsPDF } = (window as any).jspdf;
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+      const marginX = 40;
+      let y = 48;
+      const addLine = (text: string, size = 12) => { doc.setFontSize(size); doc.text(text, marginX, y); y += size + 8; };
+      const addSection = (title: string) => { y += 6; doc.setFontSize(14); doc.text(title, marginX, y); y += 16; };
+
+      doc.setFontSize(18); doc.text(`${project.name} – Detailed Analysis`, marginX, y); y += 24;
+      doc.setFontSize(11); doc.text(project.description || '', marginX, y); y += 18;
+      [
+        `Location: ${project.location}`,
+        `Dates: ${project.startDate} – ${project.endDate}`,
+        `Status: ${project.status}`,
+        `Collaborators: ${project.collaborators}`,
+        `Samples: ${project.samples}`,
+      ].forEach((t) => { doc.setFontSize(11); doc.text(t, marginX, y); y += 16; });
+
+      addSection('Overview');
+      [
+        `DNA Sequences: ${analysisData.overview.totalSequences.toLocaleString()}`,
+        `Known Species: ${analysisData.overview.knownSpecies}`,
+        `Novel Species: ${analysisData.overview.novelSpecies}`,
+        `Confidence: ${analysisData.overview.confidence}%`,
+      ].forEach((t) => addLine(t));
+
+      addSection('Top Species');
+      analysisData.species.forEach((s: any) => addLine(`${s.name} — ${s.sequences} sequences • ${s.confidence}% • ${s.classification}`));
+
+      addSection('Diversity Metrics');
+      const m = analysisData.metrics;
+      [
+        `Shannon Index: ${m.shannonIndex}`,
+        `Simpson Index: ${m.simpsonIndex}`,
+        `Evenness: ${m.evenness}`,
+        `Richness: ${m.richness}`,
+      ].forEach((t) => addLine(t));
+
+      addSection('Taxonomic Breakdown');
+      analysisData.taxonomicBreakdown.forEach((t: any) => addLine(`${t.phylum}: ${t.percentage}%`));
+
+      addSection('Timeline');
+      analysisData.timeline.forEach((t: any) => addLine(`${t.date}: ${t.event} (${t.status})`));
+
+      doc.setFontSize(10);
+      doc.text(`Exported ${new Date().toLocaleString()}`, marginX, doc.internal.pageSize.getHeight() - 24);
+
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${project.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-]/g, '')}_analysis.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Exported', description: 'PDF downloaded with project details.' });
+    } catch (err) {
+      toast({ title: 'Export failed', description: 'Could not generate the project PDF.' });
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      const ensureJsPdf = () => new Promise<void>((resolve, reject) => {
+        if ((window as any).jspdf?.jsPDF) return resolve();
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('Failed to load jsPDF'));
+        document.body.appendChild(s);
+      });
+      await ensureJsPdf();
+      const { jsPDF } = (window as any).jspdf;
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+      let y = 48;
+      doc.setFontSize(18); doc.text(`${project.name} – Detailed Analysis`, 40, y); y += 24;
+      doc.setFontSize(11); doc.text(`${project.description || ''}`, 40, y); y += 18;
+      [
+        `Location: ${project.location}`,
+        `Dates: ${project.startDate} – ${project.endDate}`,
+        `Status: ${project.status}`,
+      ].forEach((t) => { doc.setFontSize(11); doc.text(t, 40, y); y += 16; });
+      y += 6;
+      doc.setFontSize(12); [
+        `DNA Sequences: ${analysisData.overview.totalSequences.toLocaleString()}`,
+        `Known Species: ${analysisData.overview.knownSpecies}`,
+        `Novel Species: ${analysisData.overview.novelSpecies}`,
+        `Confidence: ${analysisData.overview.confidence}%`,
+      ].forEach((t) => { doc.text(t, 40, y); y += 16; });
+      const blob = doc.output('blob');
+      const file = new File([blob], `${project.name.replace(/\s+/g, '_')}_analysis.pdf`, { type: 'application/pdf' });
+      if ((navigator as any).canShare && (navigator as any).canShare({ files: [file] })) {
+        await (navigator as any).share({ title: `${project.name} – Analysis`, text: 'eDNA project summary PDF', files: [file] });
+        return;
+      }
+      const url = `${window.location.origin}/projects?projectId=${encodeURIComponent(project.id)}`;
+      if (navigator.share) {
+        await navigator.share({ title: `${project.name} – Analysis`, text: 'eDNA project summary', url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast({ title: 'Link copied', description: 'Project link copied to clipboard.' });
+      }
+    } catch (err) {
+      // ignore cancel
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
@@ -107,11 +226,11 @@ const ProjectDetailsModal: React.FC<ProjectDetailsModalProps> = ({ isOpen, onClo
                 <p className="text-muted-foreground">{project.description}</p>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" onClick={handleExport}>
                   <Download className="w-4 h-4 mr-2" />
                   Export
                 </Button>
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" onClick={handleShare}>
                   <Share2 className="w-4 h-4 mr-2" />
                   Share
                 </Button>

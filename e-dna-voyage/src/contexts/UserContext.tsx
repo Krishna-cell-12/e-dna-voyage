@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 export interface User {
   id: string;
   email: string;
+  password?: string;
   name: string;
   avatar?: string;
   role: 'researcher' | 'student' | 'institution' | 'admin';
@@ -14,6 +15,7 @@ export interface User {
   createdProjects?: string;
   countries?: string;
   recentDiscoveries?: string;
+  emailVerified?: boolean;
   createdAt: string;
   lastLogin: string;
 }
@@ -26,7 +28,7 @@ interface AuthState {
 
 interface UserContextType extends AuthState {
   login: (email: string, password: string) => Promise<boolean>;
-  signup: (userData: Omit<User, 'id' | 'createdAt' | 'lastLogin'>) => Promise<boolean>;
+  signup: (userData: Omit<User, 'id' | 'createdAt' | 'lastLogin' | 'password'>, password: string) => Promise<boolean>;
   logout: () => void;
   updateProfile: (updates: Partial<User>) => void;
   showAuthModal: boolean;
@@ -122,7 +124,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       const existingUsers = JSON.parse(localStorage.getItem('e-dna-users') || '[]');
       const user = existingUsers.find((u: User) => u.email === email);
       
-      if (user) {
+      if (user && (!user.password || user.password === password)) {
         setAuthState({
           isAuthenticated: true,
           user: {
@@ -142,7 +144,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }
   };
 
-  const signup = async (userData: Omit<User, 'id' | 'createdAt' | 'lastLogin'>): Promise<boolean> => {
+  const signup = async (userData: Omit<User, 'id' | 'createdAt' | 'lastLogin' | 'password'>, password: string): Promise<boolean> => {
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -158,6 +160,8 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Create new user
       const newUser: User = {
         ...userData,
+        password,
+        emailVerified: false,
         id: `user-${Date.now()}`,
         createdAt: new Date().toISOString(),
         lastLogin: new Date().toISOString()

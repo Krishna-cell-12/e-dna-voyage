@@ -18,6 +18,8 @@ import {
   Shield,
   Bell
 } from 'lucide-react';
+import { useUser } from '@/contexts/UserContext';
+import { sendVerificationEmail } from '@/services/emailService';
 
 // Change Password Modal
 interface ChangePasswordModalProps {
@@ -32,6 +34,7 @@ export function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProp
   const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { user, updateProfile } = useUser();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,15 +50,24 @@ export function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProp
     }
     
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const users = JSON.parse(localStorage.getItem('e-dna-users') || '[]');
+      const idx = users.findIndex((u: any) => u.id === user?.id);
+      if (idx === -1) throw new Error('User not found');
+      if (users[idx].password && users[idx].password !== currentPassword) {
+        throw new Error('Current password is incorrect');
+      }
+      users[idx].password = newPassword;
+      localStorage.setItem('e-dna-users', JSON.stringify(users));
+      updateProfile({});
       toast({ title: 'Success', description: 'Password changed successfully' });
       onClose();
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-    }, 1500);
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message || 'Unable to change password', variant: 'destructive' as any });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -161,7 +173,12 @@ interface EmailVerificationModalProps {
 export function EmailVerificationModal({ isOpen, onClose }: EmailVerificationModalProps) {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [stage, setStage] = useState<'enter' | 'verify'>('enter');
+  const [code, setCode] = useState('');
+  const [sentCode, setSentCode] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user, updateProfile } = useUser();
 
   const handleSendVerification = async () => {
     if (!email) {
@@ -170,12 +187,54 @@ export function EmailVerificationModal({ isOpen, onClose }: EmailVerificationMod
     }
     
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    // Generate a 6-digit code and send via email service
+    const generated = Math.floor(100000 + Math.random() * 900000).toString();
+    try {
+      const result = await sendVerificationEmail(email, generated);
+      if (!result.ok) {
+        throw new Error(result.error || 'Failed to send email');
+      }
+      setSentCode(generated);
+      localStorage.setItem('e-dna-email-code', generated);
+      localStorage.setItem('e-dna-email-target', email);
+      setStage('verify');
+      toast({ title: 'Verification Code Sent', description: `A 6-digit code was sent to ${email}` });
+    } catch (e: any) {
+      // As a fallback, still allow manual code entry if email sending fails
+      setSentCode(generated);
+      localStorage.setItem('e-dna-email-code', generated);
+      localStorage.setItem('e-dna-email-target', email);
+      setSendError(e?.message || 'Email provider not configured');
+      toast({ title: 'Email Service Unavailable', description: 'We could not send an email. Enter the code shown below or try again later.' });
+    } finally {
       setIsLoading(false);
-      toast({ title: 'Verification Sent', description: 'Check your email for verification instructions' });
+    }
+  };
+
+  const handleVerify = () => {
+    if (!code || code.length !== 6) {
+      toast({ title: 'Invalid Code', description: 'Enter the 6-digit code from your email', variant: 'destructive' as any });
+      return;
+    }
+    const stored = localStorage.getItem('e-dna-email-code');
+    const target = localStorage.getItem('e-dna-email-target');
+    if (stored && code === stored && target === email) {
+      // Mark verified in user store
+      const users = JSON.parse(localStorage.getItem('e-dna-users') || '[]');
+      const idx = users.findIndex((u: any) => u.id === user?.id);
+      if (idx !== -1) {
+        users[idx].emailVerified = true;
+        users[idx].email = email;
+        localStorage.setItem('e-dna-users', JSON.stringify(users));
+        updateProfile({ email, emailVerified: true });
+      }
+      localStorage.removeItem('e-dna-email-code');
+      localStorage.removeItem('e-dna-email-target');
+      toast({ title: 'Email Verified', description: 'Your email has been successfully verified' });
       onClose();
-    }, 1500);
+    } else {
+      toast({ title: 'Incorrect Code', description: 'Please check the code and try again', variant: 'destructive' as any });
+    }
   };
 
   return (
@@ -189,36 +248,52 @@ export function EmailVerificationModal({ isOpen, onClose }: EmailVerificationMod
         </DialogHeader>
         
         <div className="space-y-4">
-          <div>
-            <Label htmlFor="email">Email Address</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email address"
-              required
-            />
-          </div>
-          
-          <div className="p-3 bg-muted/10 rounded-lg border border-border/20">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-bioluminescent-teal mt-0.5" />
-              <div className="text-sm text-muted-foreground">
-                <p className="font-medium text-foreground mb-1">What happens next?</p>
-                <p>We'll send a verification link to your email. Click the link to verify your email address and enable secure notifications.</p>
+          {stage === 'enter' ? (
+            <>
+              <div>
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email address"
+                  required
+                />
               </div>
-            </div>
-          </div>
-          
-          <div className="flex gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-              Cancel
-            </Button>
-            <Button onClick={handleSendVerification} disabled={isLoading} className="flex-1">
-              {isLoading ? 'Sending...' : 'Send Verification'}
-            </Button>
-          </div>
+              <div className="p-3 bg-muted/10 rounded-lg border border-border/20">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-bioluminescent-teal mt-0.5" />
+                  <div className="text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground mb-1">What happens next?</p>
+                    <p>We will send a 6-digit verification code to your email. Enter it to verify your address.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-4">
+                <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+                <Button onClick={handleSendVerification} disabled={isLoading} className="flex-1">{isLoading ? 'Sending...' : 'Send Code'}</Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <Label htmlFor="code">Enter 6-digit Code</Label>
+                <Input id="code" inputMode="numeric" pattern="[0-9]*" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g,''))} placeholder="e.g., 123456" />
+                {sentCode && (
+                  <p className="text-xs text-muted-foreground mt-2">If email didn’t arrive, you can use this code: <span className="text-foreground font-medium">{sentCode}</span></p>
+                )}
+                {sendError && (
+                  <p className="text-xs text-destructive mt-2">Details: {sendError}</p>
+                )}
+              </div>
+              <div className="flex gap-2 pt-4">
+                <Button type="button" variant="outline" onClick={() => setStage('enter')} className="flex-1">Back</Button>
+                <Button type="button" variant="outline" onClick={handleSendVerification} disabled={isLoading} className="flex-1">{isLoading ? 'Resending...' : 'Resend Code'}</Button>
+                <Button onClick={handleVerify} className="flex-1">Verify</Button>
+              </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>
@@ -235,70 +310,97 @@ export function DownloadDataModal({ isOpen, onClose }: DownloadDataModalProps) {
   const [selectedFormat, setSelectedFormat] = useState<'pdf' | 'json' | 'csv'>('pdf');
   const [isDownloading, setIsDownloading] = useState(false);
   const { toast } = useToast();
+  const { user } = useUser();
 
   const handleDownload = async () => {
     setIsDownloading(true);
     
-    // Simulate download
-    setTimeout(() => {
-      setIsDownloading(false);
-      
-      // Create mock data
-      const mockData = {
-        user: {
-          name: 'John Doe',
-          email: 'john@example.com',
-          role: 'Marine Biologist',
-          institution: 'Ocean Research Institute',
-          createdAt: '2023-01-15',
-          bio: 'Passionate about deep-sea biodiversity research',
-          publications: '25',
-          citations: '1,250',
-          createdProjects: '12',
-          countries: 'USA, Japan, Norway'
-        },
-        projects: [
-          { name: 'Mariana Trench Survey', status: 'active', samples: 45 },
-          { name: 'Arctic Deep Water', status: 'completed', samples: 32 }
-        ],
-        analyses: [
-          { fileName: 'sample_001.fastq', species: 'Bathypelagic Cephalopod', confidence: 94.2 },
-          { fileName: 'sample_002.fastq', species: 'Hadal Xenophyophore', confidence: 91.8 }
-        ]
-      };
-      
+    try {
+      // Build current profile snapshot
+      const profile = {
+        id: user?.id,
+        name: user?.name,
+        email: user?.email,
+        emailVerified: user?.emailVerified ?? false,
+        role: user?.role,
+        institution: user?.institution,
+        location: user?.location,
+        bio: user?.bio,
+        publications: user?.publications,
+        citations: user?.citations,
+        createdProjects: user?.createdProjects,
+        countries: user?.countries,
+        createdAt: user?.createdAt,
+        lastLogin: user?.lastLogin,
+      } as const;
+
+      const dateStamp = new Date().toISOString().split('T')[0];
+
       if (selectedFormat === 'pdf') {
-        // Simulate PDF download
-        const blob = new Blob(['PDF content would be here'], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `user-data-${new Date().toISOString().split('T')[0]}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(url);
-      } else {
-        // Simulate JSON/CSV download
-        const dataStr = selectedFormat === 'json' 
-          ? JSON.stringify(mockData, null, 2)
-          : 'Name,Email,Role\nJohn Doe,john@example.com,Marine Biologist';
-        const blob = new Blob([dataStr], { 
-          type: selectedFormat === 'json' ? 'application/json' : 'text/csv' 
+        // Generate a real PDF using jsPDF
+        const ensureJsPdf = () => new Promise<void>((resolve, reject) => {
+          if ((window as any).jspdf?.jsPDF) return resolve();
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+          s.onload = () => resolve();
+          s.onerror = () => reject(new Error('Failed to load jsPDF'));
+          document.body.appendChild(s);
         });
+        await ensureJsPdf();
+        const { jsPDF } = (window as any).jspdf;
+        const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+        let y = 48;
+        doc.setFontSize(18); doc.text('Profile Data Export', 40, y); y += 24;
+        doc.setFontSize(11);
+        Object.entries(profile).forEach(([k, v]) => {
+          if (v === undefined || v === null) return;
+          const line = `${k}: ${String(v)}`;
+          doc.text(line, 40, y);
+          y += 16;
+          if (y > doc.internal.pageSize.getHeight() - 64) { doc.addPage(); y = 48; }
+        });
+        doc.setFontSize(10);
+        doc.text(`Exported ${new Date().toLocaleString()}`, 40, doc.internal.pageSize.getHeight() - 24);
+        const blob = doc.output('blob');
         const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `user-data-${new Date().toISOString().split('T')[0]}.${selectedFormat}`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(url);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `profile-data-${dateStamp}.pdf`;
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      } else if (selectedFormat === 'json') {
+        const dataStr = JSON.stringify({ profile }, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `profile-data-${dateStamp}.json`;
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      } else {
+        // CSV
+        const headers = Object.keys(profile).join(',');
+        const values = Object.values(profile).map(v => typeof v === 'string' ? `"${v.replace(/"/g,'""')}"` : String(v)).join(',');
+        const csv = `${headers}\n${values}`;
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `profile-data-${dateStamp}.csv`;
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
       }
-      
-      toast({ title: 'Download Complete', description: `Your data has been downloaded as ${selectedFormat.toUpperCase()}` });
+
+      // Copy JSON snapshot to clipboard as a convenience copy
+      try {
+        await navigator.clipboard.writeText(JSON.stringify({ profile }, null, 2));
+        toast({ title: 'Copied to Clipboard', description: 'A JSON copy of your profile was copied.' });
+      } catch {
+        // Clipboard might be blocked; ignore silently
+      }
+
+      toast({ title: 'Download Complete', description: `Your profile data has been downloaded as ${selectedFormat.toUpperCase()}` });
       onClose();
-    }, 2000);
+    } catch (e) {
+      toast({ title: 'Download Failed', description: 'Unable to generate the export. Please try again.' });
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   return (
@@ -340,10 +442,10 @@ export function DownloadDataModal({ isOpen, onClose }: DownloadDataModalProps) {
               <div className="text-sm text-muted-foreground">
                 <p className="font-medium text-foreground mb-1">What's included:</p>
                 <ul className="list-disc list-inside space-y-1">
-                  <li>Profile information</li>
-                  <li>Project data</li>
-                  <li>Analysis results</li>
-                  <li>Publication records</li>
+                  <li>Current saved profile information</li>
+                  <li>Verification status</li>
+                  <li>Account metadata (created, last login)</li>
+                  <li>Plus: a JSON copy is placed on your clipboard</li>
                 </ul>
               </div>
             </div>

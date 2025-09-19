@@ -12,7 +12,7 @@ interface Particle {
   prevY: number;
 }
 
-export const AbyssBackground = () => {
+export const AbyssBackground = ({ background }: { background?: string }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>();
   const particlesRef = useRef<Particle[]>([]);
@@ -56,7 +56,7 @@ export const AbyssBackground = () => {
       // Darken the path behind the moving particle to create attractive darker lines
       const savedComposite = ctx.globalCompositeOperation;
       ctx.globalCompositeOperation = 'multiply';
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.42)';
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
       ctx.lineWidth = Math.max(1.4, particle.size * 1.0);
       ctx.beginPath();
       ctx.moveTo(particle.prevX, particle.prevY);
@@ -117,8 +117,8 @@ export const AbyssBackground = () => {
     };
 
     const animate = (time: number) => {
-      // Stronger fade so dark trails accumulate darker but remain smooth
-      ctx.fillStyle = 'rgba(11, 15, 25, 0.08)';
+      // Slightly stronger, darker fade to deepen the overall background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       updateParticles(time);
@@ -150,7 +150,7 @@ export const AbyssBackground = () => {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 w-full h-full pointer-events-none z-0"
-      style={{ background: 'linear-gradient(180deg, #000000 0%, #0a0a0a 50%, #111111 100%)' }}
+      style={{ background: background ?? 'linear-gradient(180deg, #000000 0%, #050608 50%, #0a0a0a 100%)' }}
     />
   );
 };

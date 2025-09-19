@@ -97,14 +97,17 @@ const AuthModal: React.FC = () => {
     }
 
     try {
-      const success = await signup({
-        name: signupForm.name,
-        email: signupForm.email,
-        role: signupForm.role,
-        institution: signupForm.institution || undefined,
-        location: signupForm.location || undefined,
-        bio: signupForm.bio || undefined
-      });
+      const success = await signup(
+        {
+          name: signupForm.name,
+          email: signupForm.email,
+          role: signupForm.role,
+          institution: signupForm.institution || undefined,
+          location: signupForm.location || undefined,
+          bio: signupForm.bio || undefined,
+        },
+        signupForm.password,
+      );
 
       if (!success) {
         setError('Email already exists');
