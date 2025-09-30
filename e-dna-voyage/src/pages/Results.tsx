@@ -387,7 +387,7 @@ const Results = () => {
                           onChange={(e) => setZoneAggregationLevel(e.target.value as 'phylum' | 'class')}
                         >
                           <option value="phylum">Phylum</option>
-                          <option value="class">Class</option>
+                          
                         </select>
                       </div>
                       <span className={`px-2 py-1 rounded-md border border-border/20 ${step >= 2 ? 'bg-primary/20 text-primary' : ''}`}>1</span>
